@@ -1,6 +1,6 @@
 # SPEC 01 — Login vía Discord OAuth
 
-> **Status:** Draft
+> **Status:** aprobado
 > **Depends on:** (ninguno, es el primer spec)
 > **Date:** 2026-09-17
 > **Objective:** Implementar el login vía Discord OAuth (landing, login, callback y guard de rutas privadas) junto con el setup base del proyecto (Tailwind, router, store de auth, servicio de Axios) que lo sostiene.
@@ -144,11 +144,11 @@ const MOCK_USER: User = {
 
 ## Risks
 
-| Riesgo | Mitigación |
-| --- | --- |
-| El contrato de backend asumido no coincide con el real | Está documentado explícitamente como provisional en "Data model"; al integrar el backend real solo se ajustan `auth.service.ts` y `AuthCallbackPage.tsx`. |
-| `localStorage` deshabilitado (modo privado del navegador) | La sesión simplemente no persiste entre recargas; el resto del flujo sigue funcionando dentro de la misma pestaña. |
-| Tokens de Tailwind mal definidos afectan páginas futuras | Se limita la configuración a lo que usa el mockup `3a` (colores, fuente); cualquier extensión queda para el spec de la página que la necesite. |
+| Riesgo                                                      | Mitigación                                                                                                                                                    |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| El contrato de backend asumido no coincide con el real      | Está documentado explícitamente como provisional en "Data model"; al integrar el backend real solo se ajustan`auth.service.ts` y `AuthCallbackPage.tsx`. |
+| `localStorage` deshabilitado (modo privado del navegador) | La sesión simplemente no persiste entre recargas; el resto del flujo sigue funcionando dentro de la misma pestaña.                                           |
+| Tokens de Tailwind mal definidos afectan páginas futuras   | Se limita la configuración a lo que usa el mockup`3a` (colores, fuente); cualquier extensión queda para el spec de la página que la necesite.             |
 
 ## What is **not** in this spec
 
