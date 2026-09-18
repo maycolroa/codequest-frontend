@@ -1,0 +1,1 @@
+export default function ProgressBar({ value }: { value: number }): JSX.Element { return <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-brand-lime transition-all" style={{ width: `${Math.max(0, Math.min(value, 100))}%` }} /></div> }

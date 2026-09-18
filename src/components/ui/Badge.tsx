@@ -1,0 +1,2 @@
+import type { ReactNode } from 'react'
+export default function Badge({ children, tone = 'default' }: { children: ReactNode; tone?: 'default' | 'success' | 'warning' }): JSX.Element { const tones = { default: 'bg-brand-purple/30 text-brand-lime', success: 'bg-brand-lime/15 text-brand-lime', warning: 'bg-amber-400/15 text-amber-300' }; return <span className={`rounded-full px-3 py-1 text-[10px] tracking-widest ${tones[tone]}`}>{children}</span> }

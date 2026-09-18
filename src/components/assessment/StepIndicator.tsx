@@ -1,0 +1,1 @@
+export default function StepIndicator({ current, total = 4 }: { current: number; total?: number }): JSX.Element { return <p className="text-xs tracking-widest text-brand-lime">0{current} / 0{total}</p> }

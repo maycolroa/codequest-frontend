@@ -1,0 +1,6 @@
+import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import PageLayout from '@/components/layout/PageLayout'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { usePathsStore } from '@/stores/paths.store'
+export default function DashboardPage(): JSX.Element { const { paths, isLoading, fetchPaths } = usePathsStore(); useEffect(() => { void fetchPaths() }, [fetchPaths]); const path = paths[0]; return <PageLayout><p className="text-brand-lime text-xs">// CENTRO DE CONTROL</p><h1 className="mt-4 text-4xl font-bold">BUENAS, JULIÁN ✦</h1><div className="my-12 grid gap-4 md:grid-cols-4">{[['02','RUTAS ACTIVAS'],['47%','PROGRESO TOTAL'],['18h','TIEMPO APRENDIDO'],['#128','RANKING']].map(([value,label]) => <div className="border border-white/10 p-6" key={label}><b className="text-3xl">{value}</b><small className="mt-2 block text-slate-400">{label}</small></div>)}</div>{isLoading ? <LoadingSpinner /> : path ? <Link to={`/paths/${path.id}`} className="block max-w-2xl border border-brand-purple bg-brand-dark p-8"><p className="text-brand-lime text-xs">RUTA DE APRENDIZAJE</p><h2 className="mt-3 text-3xl font-bold">{path.title.toUpperCase()}</h2><p className="mt-3 text-slate-400">{path.totalCourses} cursos · 47% completado</p></Link> : <p className="text-slate-400">No hay rutas activas todavía.</p>}</PageLayout> }

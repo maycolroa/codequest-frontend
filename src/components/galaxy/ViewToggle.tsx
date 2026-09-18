@@ -1,0 +1,1 @@
+export default function ViewToggle({ onChange }: { onChange: (view: 'galaxy' | 'list') => void }): JSX.Element { return <div className="flex gap-2"><button className="text-xs text-brand-lime" onClick={() => onChange('galaxy')}>GALAXIA</button><button className="text-xs text-slate-400" onClick={() => onChange('list')}>LISTA</button></div> }

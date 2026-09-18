@@ -1,0 +1,4 @@
+import { LogOut } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useAuthStore } from '@/stores/auth.store'
+export default function Navbar(): JSX.Element { const authenticated = useAuthStore((state) => state.isAuthenticated); const logout = useAuthStore((state) => state.logout); return <nav className="mb-12 flex items-center justify-between border-b border-white/10 pb-5"><Link to="/" className="font-bold tracking-widest text-white">CQ <span className="text-brand-lime">CODEQUEST</span></Link><div className="flex items-center gap-5 text-xs text-slate-400"><Link to="/dashboard">RUTAS</Link><Link to="/dashboard">CURSOS</Link>{authenticated && <button onClick={logout} className="flex items-center gap-1 text-brand-lime"><LogOut size={14} /> SALIR</button>}</div></nav> }

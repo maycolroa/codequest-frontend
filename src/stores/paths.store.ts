@@ -1,0 +1,6 @@
+import { create } from 'zustand'
+import { pathsService } from '@/services/paths.service'
+import type { LearningPath, UserProgress } from '@/types'
+
+interface PathsState { paths: LearningPath[]; activePath: LearningPath | null; progress: UserProgress[]; isLoading: boolean; fetchPaths: () => Promise<void>; setActivePath: (pathId: string) => Promise<void>; updateProgress: (pathId: string, courseId: string, completed: boolean) => Promise<void>; deletePath: (id: string) => Promise<void> }
+export const usePathsStore = create<PathsState>((set) => ({ paths: [], activePath: null, progress: [], isLoading: false, fetchPaths: async () => { set({ isLoading: true }); try { set({ paths: await pathsService.getAll() }) } finally { set({ isLoading: false }) } }, setActivePath: async (id) => { set({ isLoading: true }); try { set({ activePath: await pathsService.getById(id) }) } finally { set({ isLoading: false }) } }, updateProgress: async (pathId, courseId, completed) => { const progress = await pathsService.updateProgress(pathId, courseId, completed); set((state) => ({ progress: [...state.progress.filter((item) => item.pathId !== pathId), progress] })) }, deletePath: async (id) => { await pathsService.delete(id); set((state) => ({ paths: state.paths.filter((path) => path.id !== id) })) } }))
