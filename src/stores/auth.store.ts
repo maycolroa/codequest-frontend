@@ -1,0 +1,6 @@
+import { create } from 'zustand'
+import { authService } from '@/services/auth.service'
+import { getToken, removeToken, setToken } from '@/utils/token'
+import type { User } from '@/types'
+interface AuthState { user: User | null; token: string | null; isAuthenticated: boolean; isLoading: boolean; login: () => void; logout: () => void; setUser: (user: User) => void; refreshToken: () => Promise<void>; fetchMe: () => Promise<void>; loginWithDiscord: () => void }
+export const useAuthStore = create<AuthState>((set) => ({ user: null, token: getToken(), isAuthenticated: Boolean(getToken()), isLoading: false, login: () => { setToken('pending'); if (import.meta.env.VITE_MOCK_MODE === 'true') set({ token: 'pending', isAuthenticated: true }); else authService.loginWithDiscord() }, fetchMe: async () => { set({ isLoading: true }); try { const user = await authService.getMe(); set({ user, isAuthenticated: true }) } finally { set({ isLoading: false }) } }, setUser: (user) => set({ user, isAuthenticated: true }), refreshToken: async () => { await useAuthStore.getState().fetchMe() }, logout: () => { removeToken(); set({ user: null, token: null, isAuthenticated: false }) }, loginWithDiscord: () => { useAuthStore.getState().login() } }))
