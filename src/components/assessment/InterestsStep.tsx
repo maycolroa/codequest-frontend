@@ -1,1 +1,2 @@
-export default function InterestsStep(): JSX.Element { return <p className="text-sm text-slate-400">Selecciona tus intereses.</p> }
+import type { ReactNode } from 'react'
+export default function InterestsStep({ children }: { children: ReactNode }): JSX.Element { return <div className="space-y-3">{children}</div> }

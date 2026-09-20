@@ -1,1 +1,2 @@
-export default function TechStep(): JSX.Element { return <p className="text-sm text-slate-400">Selecciona tus tecnologías.</p> }
+import type { ReactNode } from 'react'
+export default function TechStep({ children }: { children: ReactNode }): JSX.Element { return <div className="space-y-3">{children}</div> }

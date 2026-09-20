@@ -1,1 +1,2 @@
-export default function GoalsStep(): JSX.Element { return <p className="text-sm text-slate-400">Selecciona tus objetivos.</p> }
+import type { ReactNode } from 'react'
+export default function GoalsStep({ children }: { children: ReactNode }): JSX.Element { return <div className="space-y-3">{children}</div> }
