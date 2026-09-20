@@ -325,6 +325,12 @@ api.interceptors.response.use(
 | `assessments.service.ts` | `create(payload)` |
 | `paths.service.ts` | `getAll()`, `getById()`, `toggleProgress()`, `delete()` |
 
+> Estado actual de integración: el backend real todavía no expone endpoints
+> de rutas de aprendizaje (`/paths` o `/learning-paths`). Con
+> `VITE_MOCK_MODE=false`, el frontend muestra `EmptyState` y no genera
+> solicitudes a endpoints inexistentes. La integración real de paths queda
+> pendiente de la implementación correspondiente en el backend.
+
 ---
 
 ## Estilos con Tailwind CSS
@@ -496,7 +502,7 @@ export default {
 }
 ```
 
-Abre `src/index.css` y agrega al inicio:
+Abre `src/styles/index.css` y agrega al inicio:
 
 ```css
 @tailwind base;

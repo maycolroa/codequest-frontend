@@ -16,7 +16,7 @@ Contexto técnico del frontend de Code Quest 2026.
 | `/login` | `LoginPage` | Inicio de sesión del usuario | Público |
 | `/auth/callback` | `AuthCallbackPage` | Callback del flujo de autenticación (OAuth/SSO) | Público |
 | `/dashboard` | `DashboardPage` | Panel principal del usuario autenticado (progreso, rutas activas) | Privado |
-| `/assessment/:id` | `AssessmentPage` | Evaluación/quiz de una ruta o módulo específico | Privado |
+| `/assessment` | `AssessmentPage` | Cuestionario de cuatro pasos | Privado |
 | `/paths/:id` | `PathDetailPage` | Detalle de una ruta de aprendizaje (learning path) | Privado |
 
 Las rutas privadas deben estar protegidas por un guard que valide la sesión
@@ -30,14 +30,12 @@ codequest-frontend/
 ├── docs/                      # Documentación del proyecto (este directorio)
 ├── public/                    # Archivos estáticos servidos tal cual
 ├── src/
-│   ├── assets/                  # Imágenes, íconos, fuentes
 │   ├── components/
 │   │   ├── ui/                    # Componentes UI genéricos: Button, Badge,
 │   │   │                          # ProgressBar, Card
-│   │   └── star-map/              # Componente StarMap (canvas de galaxia)
+│   │   └── galaxy/                # Componentes del mapa de galaxia
 │   ├── hooks/                   # Custom hooks (lógica reutilizable)
 │   ├── pages/                   # Componentes de página (uno por ruta)
-│   ├── router/                  # Configuración de React Router y guards
 │   ├── services/                # Instancia de Axios y servicios por módulo
 │   │   ├── api.ts                 # Instancia Axios configurada
 │   │   ├── auth.service.ts
@@ -50,7 +48,7 @@ codequest-frontend/
 │   ├── types/                   # Tipos e interfaces TypeScript compartidos
 │   ├── App.tsx
 │   ├── main.tsx
-│   └── index.css
+│   └── styles/index.css          # Tailwind y clases globales
 ├── .env.example                # Plantilla de variables de entorno
 ├── tailwind.config.js
 ├── vite.config.ts               # Incluye alias @ -> src/
@@ -76,10 +74,10 @@ Maneja el estado de autenticación del usuario.
 
 Maneja las rutas de aprendizaje y el progreso del usuario en ellas.
 
-- **Estado:** `paths: LearningPath[]`, `activePath: LearningPath | null`,
-  `progress: UserProgress[]`, `isLoading: boolean`.
-- **Acciones:** `fetchPaths()`, `setActivePath(pathId)`,
-  `updateProgress(pathId, progress)`.
+- **Estado:** `paths: LearningPath[]`, `currentPath: LearningPath | null`,
+  `progress: UserProgress[]`, `loading: boolean`.
+- **Acciones:** `fetchPaths()`, `fetchPath(pathId)`,
+  `toggleProgress(pathId, courseId, completed)`, `deletePath(id)`.
 
 Ambos stores siguen la regla de `RULES.md`: nunca se muta el estado
 directamente, todas las actualizaciones pasan por `set()`.
