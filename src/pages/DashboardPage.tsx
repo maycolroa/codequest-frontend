@@ -1,6 +1,23 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import PageLayout from '@/components/layout/PageLayout'
+import { useNavigate } from 'react-router-dom'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { useAuthStore } from '@/stores/auth.store'
 import { usePathsStore } from '@/stores/paths.store'
-export default function DashboardPage(): JSX.Element { const { paths, isLoading, fetchPaths } = usePathsStore(); useEffect(() => { void fetchPaths() }, [fetchPaths]); const path = paths[0]; return <PageLayout><p className="text-brand-lime text-xs">// CENTRO DE CONTROL</p><h1 className="mt-4 text-4xl font-bold">BUENAS, JULIÁN ✦</h1><div className="my-12 grid gap-4 md:grid-cols-4">{[['02','RUTAS ACTIVAS'],['47%','PROGRESO TOTAL'],['18h','TIEMPO APRENDIDO'],['#128','RANKING']].map(([value,label]) => <div className="border border-white/10 p-6" key={label}><b className="text-3xl">{value}</b><small className="mt-2 block text-slate-400">{label}</small></div>)}</div>{isLoading ? <LoadingSpinner /> : path ? <Link to={`/paths/${path.id}`} className="block max-w-2xl border border-brand-purple bg-brand-dark p-8"><p className="text-brand-lime text-xs">RUTA DE APRENDIZAJE</p><h2 className="mt-3 text-3xl font-bold">{path.title.toUpperCase()}</h2><p className="mt-3 text-slate-400">{path.totalCourses} cursos · 47% completado</p></Link> : <p className="text-slate-400">No hay rutas activas todavía.</p>}</PageLayout> }
+import { useStarMap } from '@/hooks/useStarMap'
+import EmptyState from '@/components/dashboard/EmptyState'
+
+const streak = Array.from({ length: 28 }, (_, index) => index < 23 || index === 25)
+
+export default function DashboardPage(): JSX.Element {
+  const { canvasRef } = useStarMap({ count: 480, background: true })
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const navigate = useNavigate()
+  const { paths, loading, fetchPaths } = usePathsStore()
+  useEffect(() => { void fetchPaths() }, [fetchPaths])
+  const firstName = user?.username?.split(' ')[0] ?? 'explorador'
+  const progress = 34
+  return <section className="dashboard-screen"><canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" /><div className="dashboard-content"><header className="dashboard-heading"><div><p className="dashboard-eyebrow">Tu universo · sesión 128</p><h1>Hola, {firstName}</h1></div><div className="dashboard-profile"><span>Nivel · intermedio</span><div className="dashboard-avatar">{firstName.charAt(0).toUpperCase()}</div><button type="button" onClick={() => { logout(); navigate('/') }} className="dashboard-logout">Cerrar sesión</button></div></header><div className="dashboard-grid"><section className="dashboard-map dashboard-panel"><p className="dashboard-label">Mapa general</p><div className="progress-ring" style={{ '--progress': `${progress * 3.6}deg` } as React.CSSProperties}><div><strong>{progress}%</strong><span>Conquistado</span></div></div><div className="dashboard-map-footer"><span>12 estrellas vivas</span><span>1 en órbita</span><span>22 sin explorar</span></div></section><aside className="dashboard-side"><Metric label="Cursos cerrados" value="12" suffix="/ 20" /><Metric label="Horas en órbita" value="148" suffix="hrs" /><Metric label="Racha" value="23" suffix="días" /><section className="streak-card dashboard-panel"><p className="dashboard-label green">Racha · 23 días</p><div className="streak-grid">{streak.map((active, index) => <span className={active ? index > 20 ? 'active bright' : 'active' : ''} key={index} />)}</div><p className="streak-message">Una lección hoy mantiene la señal viva.</p></section></aside></div>{loading ? <LoadingSpinner /> : paths.length === 0 ? <div className="mt-5"><EmptyState /></div> : null}</div></section>
+}
+
+function Metric({ label, value, suffix }: { label: string; value: string; suffix: string }): JSX.Element { return <section className="metric-card dashboard-panel"><p className="dashboard-label">{label}</p><div><strong>{value}</strong><span>{suffix}</span></div></section> }
