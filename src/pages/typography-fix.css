@@ -1,2 +1,0 @@
-/* Corrección: la línea se comporta como una sola palabra compuesta, como en el mockup. */
-.landing-copy h1>span{color:#a3e635!important;text-shadow:none!important}.landing-copy h1:before{display:none}.landing-copy h1:after{content:'CODE QUEST';left:0;top:0;color:#38bdf8;opacity:.82;clip-path:inset(57% 0 0 0);animation:glitchB 4s infinite steps(1);text-shadow:0 0 18px rgba(56,189,248,.7)}
