@@ -1,0 +1,36 @@
+name: Build & Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build Docker image & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
+            -t registry.digitalocean.com/codequest/frontend:latest \
+            -t registry.digitalocean.com/codequest/frontend:${{ github.sha }} \
+            .
+
+      - name: Push image to Container Registry
+        run: |
+          docker push registry.digitalocean.com/codequest/frontend:latest
+          docker push registry.digitalocean.com/codequest/frontend:${{ github.sha }}
