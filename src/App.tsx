@@ -7,6 +7,7 @@ import AuthCallbackPage from '@/pages/AuthCallbackPage'
 import DashboardPage from '@/pages/DashboardPage'
 import AssessmentPage from '@/pages/AssessmentPage'
 import PathDetailPage from '@/pages/PathDetailPage'
+import StarMap3D from '@/components/galaxy/StarMap3D'
 
 function ProtectedRoutes(): JSX.Element {
   const { token, user, isAuthenticated, isLoading, fetchMe } = useAuthStore()
@@ -37,6 +38,7 @@ export default function App(): JSX.Element {
     <Route path="/" element={<LandingPage />} />
     <Route path="/login" element={<LoginPage />} />
     <Route path="/auth/callback" element={<AuthCallbackPage />} />
+    <Route path="/starmap" element={<StarMap3D />} />
     <Route element={<ProtectedRoutes />}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/assessment" element={<AssessmentPage />} />
