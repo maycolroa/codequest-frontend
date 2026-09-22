@@ -13,6 +13,7 @@ interface AuthState {
   logout: () => void
   loginWithDiscord: () => void
   loginWithCredentials: (email: string, password: string) => Promise<void>
+  register: (email: string, username: string, password: string) => Promise<void>
 }
 
 const initialToken = getToken()
@@ -47,6 +48,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   loginWithCredentials: async (email, password) => {
     const { token } = await authService.loginWithCredentials(email, password)
+    persistToken(token)
+    set({ token, isAuthenticated: true })
+    await authService.getMe().then((user) => set({ user }))
+  },
+  register: async (email, username, password) => {
+    const { token } = await authService.register(email, username, password)
     persistToken(token)
     set({ token, isAuthenticated: true })
     await authService.getMe().then((user) => set({ user }))
