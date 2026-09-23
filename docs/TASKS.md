@@ -58,6 +58,11 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 - [x] Crear `Dockerfile` para build de producción
 - [x] Crear `nginx.conf` para servir el build estático
 
+### Galaxia 3D de cursos (SPEC 02)
+
+- [ ] Implementar `GET /api/v1/courses/galaxy` en `codequest-backend`
+      (hasta entonces el frontend muestra la galaxia demo)
+
 ### Deploy
 
 - [ ] Conectar el repositorio con DigitalOcean App Platform
@@ -83,3 +88,16 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 - [x] Regenerar `package-lock.json` con React 18 y reinstalar dependencias
 - [x] Verificar compilación con `npm run build`
 - [x] Verificar calidad de código con `npm run lint`
+- [x] Declarar `three` y `@types/three` en `package.json`
+- [x] Tipos `Galaxy`, `GalaxyCourse`, `CourseGalaxyResponse` y `CourseLevel`
+- [x] `coursesService.getCourseGalaxy()` y galaxia demo `galaxy.mock.ts`
+- [x] Hook `useCourseGalaxy` con fallback a la galaxia demo
+- [x] Hook `useGalaxyScene` con Three.js, `OrbitControls` y `dispose()`
+      completo en cada rebuild
+- [x] Nebulosas por galaxia, esferas por nivel, anillo de segunda galaxia y
+      cursos inactivos atenuados
+- [x] Hover con líneas de prerequisitos / relacionados y `CourseTooltip`
+- [x] Click / tap con zoom animado y `CoursePanel`
+- [x] Búsqueda, filtro de nivel, leyenda y banner demo en `StarMap3D`
+- [x] Lazy load de `/starmap` en un chunk separado
+- [x] Enlace "Explorar galaxia →" en el Dashboard

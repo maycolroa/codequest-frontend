@@ -18,6 +18,7 @@ Contexto técnico del frontend de Code Quest 2026.
 | `/dashboard` | `DashboardPage` | Panel principal del usuario autenticado (progreso, rutas activas) | Privado |
 | `/assessment/:id` | `AssessmentPage` | Evaluación/quiz de una ruta o módulo específico | Privado |
 | `/paths/:id` | `PathDetailPage` | Detalle de una ruta de aprendizaje (learning path) | Privado |
+| `/starmap` | `StarMap3D` (lazy) | Galaxia 3D de cursos. Sin sesión muestra la galaxia demo y un CTA de login con Discord | Público |
 
 Las rutas privadas deben estar protegidas por un guard que valide la sesión
 del usuario contra `useAuthStore` y redirija a `/login` si no hay sesión
@@ -34,14 +35,17 @@ codequest-frontend/
 │   ├── components/
 │   │   ├── ui/                    # Componentes UI genéricos: Button, Badge,
 │   │   │                          # ProgressBar, Card
-│   │   └── star-map/              # Componente StarMap (canvas de galaxia)
-│   ├── hooks/                   # Custom hooks (lógica reutilizable)
+│   │   ├── star-map/              # Componente StarMap (canvas de galaxia)
+│   │   └── galaxy/                # StarMap3D, CourseTooltip, CoursePanel
+│   ├── hooks/                   # Custom hooks (lógica reutilizable):
+│   │                            # useCourseGalaxy (datos), useGalaxyScene (Three.js)
 │   ├── pages/                   # Componentes de página (uno por ruta)
 │   ├── router/                  # Configuración de React Router y guards
 │   ├── services/                # Instancia de Axios y servicios por módulo
 │   │   ├── api.ts                 # Instancia Axios configurada
 │   │   ├── auth.service.ts
 │   │   ├── courses.service.ts
+│   │   ├── galaxy.mock.ts         # Galaxia demo con el contrato de /courses/galaxy
 │   │   ├── assessments.service.ts
 │   │   └── paths.service.ts
 │   ├── stores/                  # Stores de Zustand, uno por dominio
@@ -93,7 +97,12 @@ request/response, manejo de token de autenticación y errores).
 - **`auth.service.ts`** — login, logout, refresh de sesión, obtención del
   usuario autenticado (`/auth/login`, `/auth/logout`, `/auth/me`).
 - **`courses.service.ts`** — listado y detalle de cursos/módulos
-  (`/courses`, `/courses/:id`).
+  (`/courses`, `/courses/:id`) y galaxia de cursos (`/courses/galaxy`,
+  `getCourseGalaxy()`).
+  > **Nota:** `codequest-backend` todavía no expone `GET /courses/galaxy`.
+  > `useCourseGalaxy` cae a la galaxia demo (`galaxy.mock.ts`) y muestra un
+  > toast cuando la petición falla. Sin token no se llama al endpoint, para
+  > que el interceptor de 401 no redirija al visitante anónimo.
 - **`assessments.service.ts`** — obtención y envío de evaluaciones
   (`/assessments/:id`, `/assessments/:id/submit`).
 - **`paths.service.ts`** — listado, detalle y progreso de rutas de
@@ -137,6 +146,43 @@ interface UserProgress {
   completedCourseIds: string[];
   completionPercentage: number;
   lastActivityAt: string;
+}
+```
+
+### Galaxia de cursos (`GET /courses/galaxy`)
+
+Tipos separados de `Course`, que no cambia.
+
+```ts
+type CourseLevel = Course["level"]; // 'beginner' | 'intermediate' | 'advanced'
+
+interface Galaxy {
+  key: string;
+  name: string;
+  color: string;
+  center: { x: number; y: number; z: number };
+}
+
+interface GalaxyCourse {
+  id: string; // UUID
+  slug: string;
+  title: string;
+  category: string;
+  level: CourseLevel;
+  tags: string[];
+  isActive: boolean;
+  galaxies: string[]; // keys de Galaxy; [0] es la galaxia principal
+  galaxyColor: string;
+  positionX?: number | null;
+  positionY?: number | null;
+  positionZ?: number | null;
+  prerequisites: string[]; // slugs
+  related: string[]; // slugs
+}
+
+interface CourseGalaxyResponse {
+  galaxies: Galaxy[];
+  courses: GalaxyCourse[];
 }
 ```
 

@@ -64,3 +64,41 @@ tipo cuando aplica (Añadido, Cambiado, Corregido, Documentación).
   parametrizados `/assessments/:id` y `/assessments/:id/submit`.
 - Configuración del entorno de ejemplo en modo mock para que la landing y el
   flujo local puedan ejecutarse sin backend.
+
+## 2026-09-22
+
+### Añadido
+
+- Galaxia 3D de cursos en `/starmap` (SPEC 02): `StarMap3D` consume
+  `GET /courses/galaxy` y muestra una nebulosa por galaxia, una esfera por
+  curso (color de su galaxia, tamaño según nivel, anillo si pertenece a una
+  segunda galaxia, atenuada si está inactiva) y líneas rojas / azules hacia
+  prerequisitos y cursos relacionados al hacer hover.
+- Tipos `CourseLevel`, `Galaxy`, `GalaxyCourse` y `CourseGalaxyResponse`, y
+  `coursesService.getCourseGalaxy()`.
+- Galaxia demo (`src/services/galaxy.mock.ts`) que se muestra sin sesión, con
+  `VITE_MOCK_MODE=true` o si falla la petición (con toast de aviso), junto a
+  un banner con CTA de login con Discord.
+- Hooks `useCourseGalaxy` (datos) y `useGalaxyScene` (escena Three.js), y
+  componentes `CourseTooltip` y `CoursePanel`.
+- Búsqueda por título, tags y galaxia (sin mayúsculas ni acentos), filtro de
+  nivel, leyenda de galaxias y zoom animado al seleccionar un curso.
+- Enlace "Explorar galaxia →" en el panel "Mapa general" del Dashboard.
+
+### Cambiado
+
+- `StarMap3D.tsx` pasa de 1261 líneas a un orquestador: la lógica de Three.js
+  vive en `useGalaxyScene` y la navegación usa `OrbitControls`.
+- `StarMap3D` se carga con `React.lazy`: Three.js queda en un chunk separado
+  del bundle principal.
+- Eliminados los cursos mock de astrofísica, `STATUS_CONFIG`, las
+  estadísticas de completados, el botón de sonido y el branding anterior.
+
+### Corregido
+
+- `three` y `@types/three` declarados en `package.json`.
+- Los filtros actualizan la escena (antes el effect corría una sola vez).
+- El tooltip se posiciona por ref: el hover ya no re-renderiza React en cada
+  frame.
+- Los rebuilds de la escena hacen `dispose()` de geometrías, materiales y
+  texturas.
