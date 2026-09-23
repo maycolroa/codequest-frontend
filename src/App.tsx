@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import LandingPage from '@/pages/LandingPage'
@@ -7,6 +7,9 @@ import AuthCallbackPage from '@/pages/AuthCallbackPage'
 import DashboardPage from '@/pages/DashboardPage'
 import AssessmentPage from '@/pages/AssessmentPage'
 import PathDetailPage from '@/pages/PathDetailPage'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+
+const StarMap3D = lazy(() => import('@/components/galaxy/StarMap3D'))
 
 function ProtectedRoutes(): JSX.Element {
   const { token, user, isAuthenticated, isLoading, fetchMe } = useAuthStore()
@@ -37,6 +40,7 @@ export default function App(): JSX.Element {
     <Route path="/" element={<LandingPage />} />
     <Route path="/login" element={<LoginPage />} />
     <Route path="/auth/callback" element={<AuthCallbackPage />} />
+    <Route path="/starmap" element={<Suspense fallback={<LoadingSpinner />}><StarMap3D /></Suspense>} />
     <Route element={<ProtectedRoutes />}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/assessment" element={<AssessmentPage />} />
