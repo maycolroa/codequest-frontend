@@ -1,7 +1,0 @@
-/* Proporciones del mockup: el hero ocupa el primer viewport sin empujar las tarjetas. */
-.landing-screen .landing-hero{min-height:clamp(420px,68vh,650px)}
-.landing-screen .landing-nav{min-height:32px}
-.landing-screen .devi-frame{height:clamp(330px,39vw,590px)}
-.landing-screen .devi-frame img{width:min(clamp(280px,22vw,500px),78%)}
-.landing-screen .background-constellation{top:18%;right:4%;width:min(43vw,620px);opacity:.28}
-@media(max-width:700px){.landing-screen .landing-hero{min-height:0}.landing-screen .devi-frame{height:270px}.landing-screen .background-constellation{top:36%;width:90%}}

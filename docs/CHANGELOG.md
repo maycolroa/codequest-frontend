@@ -2,6 +2,25 @@
 
 Historial de cambios del frontend de Code Quest 2026.
 
+## 2026-09-20
+
+### Corregido
+
+- Evitadas las solicitudes 404 de rutas de aprendizaje: el frontend ahora
+  muestra el estado vacío cuando el backend real aún no expone endpoints de
+  paths, manteniendo el modo mock separado.
+
+## 2026-09-19
+
+### Cambiado
+
+- Alineación de stores, assessment, componentes de dashboard y galaxia con el
+  contrato principal de `README.md`.
+- Consolidación de estilos en `src/styles/index.css` y eliminación de CSS por
+  página y del componente no documentado `Starfield`.
+- Traslado de la lógica Canvas de fondo y mapa a `useStarMap.ts`.
+- Alineación de Docker y Nginx con la configuración documentada.
+
 Formato: fecha (`YYYY-MM-DD`) y lista de cambios relevantes, agrupados por
 tipo cuando aplica (Añadido, Cambiado, Corregido, Documentación).
 

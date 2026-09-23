@@ -10,7 +10,7 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 - [x] Configurar Tailwind CSS (instalación, `tailwind.config.js`, tema del
       proyecto)
 - [x] Crear la estructura de carpetas del proyecto (`components/`, `hooks/`,
-      `pages/`, `router/`, `services/`, `stores/`, `types/`)
+      `pages/`, `services/`, `stores/`, `types/`, `utils/`, `styles/`)
 - [x] Crear archivo `.env.example` con `VITE_API_URL` y `VITE_MOCK_MODE`
 - [x] Configurar alias `@` en `vite.config.ts` (y en `tsconfig.app.json`)
       apuntando a `src/`
@@ -29,7 +29,7 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 
 ### Router
 
-- [x] Configurar React Router con las rutas de la app y guards de
+- [x] Configurar React Router en `App.tsx` con las rutas de la app y guards de
       autenticación para rutas privadas
 
 ### Páginas

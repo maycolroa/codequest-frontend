@@ -1,1 +1,0 @@
-.landing-screen .devi-orbit{animation:deviOrbitSpin 46s linear infinite;transform-origin:center center}.landing-screen .devi-orbit:after{right:auto;top:-4px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:99px;background:#a3e635;font-size:0;box-shadow:0 0 16px #a3e635}@keyframes deviOrbitSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
