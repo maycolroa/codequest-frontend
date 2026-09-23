@@ -101,3 +101,15 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 - [x] Búsqueda, filtro de nivel, leyenda y banner demo en `StarMap3D`
 - [x] Lazy load de `/starmap` en un chunk separado
 - [x] Enlace "Explorar galaxia →" en el Dashboard
+- [x] Foco de galaxia (nebulosa, leyenda, `Esc`, "Vista general", click en
+      el vacío) con zoom a su centro (SPEC 03)
+- [x] Resaltado y atenuado de estrellas y nebulosas por hover y foco, con
+      lerp en el loop
+- [x] Picking de nebulosas con prioridad de la estrella
+- [x] Leyenda interactiva con `aria-pressed`
+- [x] Líneas `Line2` con grosor, partículas de prerequisitos, dash animado,
+      crecimiento y pulso
+- [x] Líneas persistentes del curso seleccionado
+- [x] Soporte de `prefers-reduced-motion` en la galaxia 3D
+- [x] Tono de las esferas más suave (emissive 0.6 y color mezclado un 40 %
+      hacia gris oscuro)

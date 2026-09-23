@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Compass, Layers, RotateCcw, Search } from 'lucide-react'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import CoursePanel from '@/components/galaxy/CoursePanel'
@@ -24,12 +24,16 @@ export default function StarMap3D(): JSX.Element {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all')
+  const [focusedGalaxyKey, setFocusedGalaxyKey] = useState<string | null>(null)
   const loginWithDiscord = useAuthStore((s) => s.loginWithDiscord)
   const { galaxies, courses, isLoading, isDemo } = useCourseGalaxy()
 
   // Índices sobre todos los cursos recibidos, no solo los filtrados
   const courseBySlug = useMemo(() => new Map(courses.map((course) => [course.slug, course])), [courses])
   const galaxyByKey = useMemo(() => new Map(galaxies.map((galaxy) => [galaxy.key, galaxy])), [galaxies])
+
+  // La galaxia enfocada puede desaparecer al cambiar los datos (p. ej. de demo a real): se trata como sin foco
+  const activeFocusKey = focusedGalaxyKey && galaxyByKey.has(focusedGalaxyKey) ? focusedGalaxyKey : null
 
   const filteredCourses = useMemo(() => {
     const query = normalize(searchTerm.trim())
@@ -41,22 +45,39 @@ export default function StarMap3D(): JSX.Element {
     })
   }, [courses, galaxyByKey, levelFilter, searchTerm])
 
-  const { isSupported, resetCamera, focusCourse } = useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses: filteredCourses, selectedId: selectedSlug, onHover: setHoveredSlug, onSelect: setSelectedSlug })
+  const { isSupported, resetCamera, focusCourse } = useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses: filteredCourses, selectedId: selectedSlug, onHover: setHoveredSlug, onSelect: setSelectedSlug, focusedGalaxyKey: activeFocusKey, onFocusGalaxy: setFocusedGalaxyKey })
   const hoveredCourse = hoveredSlug ? courseBySlug.get(hoveredSlug) ?? null : null
   const selectedCourse = selectedSlug ? courseBySlug.get(selectedSlug) ?? null : null
 
-  // Se limpian búsqueda y filtro para que el curso destino esté siempre en la escena
+  // Se limpian búsqueda, filtro y foco para que el curso destino esté siempre en la escena y sin atenuar
   const handleNavigate = useCallback((slug: string) => {
     setSearchTerm('')
     setLevelFilter('all')
+    setFocusedGalaxyKey(null)
     setSelectedSlug(slug)
     focusCourse(slug)
   }, [focusCourse])
 
   const handleResetCamera = useCallback(() => {
     setSelectedSlug(null)
+    setFocusedGalaxyKey(null)
     resetCamera()
   }, [resetCamera])
+
+  // La leyenda funciona como toggle del foco
+  const handleToggleGalaxy = useCallback((key: string) => {
+    setFocusedGalaxyKey(activeFocusKey === key ? null : key)
+  }, [activeFocusKey])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return
+      setFocusedGalaxyKey(null)
+      setSelectedSlug(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <div ref={containerRef} className="relative h-screen w-full select-none overflow-hidden bg-[#000005] font-sans text-slate-100">
@@ -117,12 +138,17 @@ export default function StarMap3D(): JSX.Element {
             <span>Galaxias</span>
           </div>
           <ul className="space-y-1.5 text-[11px] text-slate-300">
-            {galaxies.map((galaxy) => (
-              <li key={galaxy.key} className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: galaxy.color, boxShadow: `0 0 8px ${galaxy.color}` }} />
-                <span>{galaxy.name}</span>
-              </li>
-            ))}
+            {galaxies.map((galaxy) => {
+              const isFocused = activeFocusKey === galaxy.key
+              return (
+                <li key={galaxy.key}>
+                  <button type="button" onClick={() => handleToggleGalaxy(galaxy.key)} aria-pressed={isFocused} className={`flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left transition-opacity hover:bg-white/5 hover:text-white ${activeFocusKey && !isFocused ? 'opacity-50' : ''} ${isFocused ? 'font-semibold text-white' : ''}`}>
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: galaxy.color, boxShadow: `0 0 8px ${galaxy.color}` }} />
+                    <span>{galaxy.name}</span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
           <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2.5 text-[11px] text-slate-400">
             <div className="flex items-center gap-2"><span className="h-0.5 w-5 bg-red-500" /><span>Prerequisitos</span></div>
