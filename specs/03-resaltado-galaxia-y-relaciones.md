@@ -46,6 +46,11 @@ El contrato de `GET /courses/galaxy` no trae un peso por relación. La "importan
   - el zoom es instantáneo;
   - el resaltado y las líneas se siguen mostrando.
 - **Módulos nuevos** en `src/lib/galaxy/`, para no seguir engordando `useGalaxyScene.ts`.
+- **Tono de las esferas más suave.** Hoy se ven saturadas, como objetos neón, y deben parecer estrellas lejanas:
+  - `baseEmissive` de los cursos activos baja de 1.4 a 0.6. Los inactivos siguen en 0.3;
+  - el color del core, que se usa como `color` y como `emissive`, se mezcla un 40 % hacia gris oscuro (`STAR_TONE_GRAY = #262626`, `STAR_TONE_MIX = 0.4`);
+  - el color del halo y el del anillo reciben la misma mezcla;
+  - el color sigue siendo identificable por galaxia. Las nebulosas no cambian.
 - Actualizar `docs/CHANGELOG.md`, `docs/TASKS.md` y `docs/CONTEXT.md`.
 
 **Out of scope (para specs futuros):**
@@ -122,7 +127,7 @@ export function createRelationLines(options: {
 interface CourseNode {
   // ...campos actuales
   baseOpacity: number   // 1 o INACTIVE_OPACITY
-  baseEmissive: number  // 1.4 o 0.3
+  baseEmissive: number  // 0.6 o 0.3
 }
 
 interface NebulaNode {
@@ -145,7 +150,15 @@ Convenciones:
   | `highlighted` | `baseOpacity`                                | `baseEmissive × 1.4` | ×1.3                      |
   | `dimmed`      | `min(0.2, baseOpacity)` (`DIMMED_OPACITY`) | `baseEmissive × 0.3` | ×0.2                      |
 
+  `baseEmissive` es `0.6` en los cursos activos y `0.3` en los inactivos. Para los activos da un emissive de 0.6 en `neutral`, 0.84 en `highlighted` y 0.18 en `dimmed`.
+
   Los materiales del core pasan a `transparent: true` siempre, para poder interpolar la opacidad.
+- **Tono de las esferas.** El color base de cada estrella es `galaxyColor.lerp(STAR_TONE_GRAY, STAR_TONE_MIX)`, con `STAR_TONE_GRAY = #262626` y `STAR_TONE_MIX = 0.4`:
+  - el core usa ese color como `color` y como `emissive`;
+  - el halo usa el mismo color;
+  - el anillo aplica la misma mezcla al color de su segunda galaxia.
+
+  La point light, las líneas, el pulso, la leyenda y las nebulosas conservan el `galaxyColor` original.
 - **Targets de nebulosa.**
 
   - Intensificada: opacity `0.6`, escala `baseSize × 1.25`.
@@ -245,7 +258,14 @@ Convenciones:
     - `selectedLines` se crea con `SELECTED_LINE_INTENSITY` cuando cambia `selectedId`, y se recrea tras el rebuild de nodos si el curso sigue existiendo.
     - Si el curso en hover es el seleccionado, no se crea `hoverLines` y `selectedLines` sube a intensidad 1 mientras dura el hover.
     - Ambos slots se liberan con `dispose()` en el cleanup y en cada rebuild.
-12. Actualizar la documentación:
+12. Suavizar el tono de las esferas en el effect de nodos de `useGalaxyScene.ts`:
+
+    - `baseEmissive` pasa a 0.6 en los cursos activos;
+    - core, halo y anillo usan el color mezclado un 40 % hacia `STAR_TONE_GRAY`;
+    - las nebulosas no se tocan.
+
+    Prueba manual: las esferas se ven más tenues, pero cada una se sigue distinguiendo por el color de su galaxia.
+13. Actualizar la documentación:
 
     - `docs/CHANGELOG.md`: entrada `2026-09-23` con secciones Añadido y Cambiado.
     - `docs/TASKS.md`: tareas completadas.
@@ -293,6 +313,7 @@ Convenciones:
 - [ ] Cambiar el filtro de nivel con foco y selección activos no deja líneas huérfanas en la escena.
 - [ ] En un viewport de 390×844, un tap en una nebulosa enfoca la galaxia y la leyenda sigue oculta.
 - [ ] `/`, `/login`, `/dashboard` y `/starmap` cargan sin errores en consola.
+- [ ] Las esferas de los cursos activos usan un `emissiveIntensity` base de 0.6, y su color, el del halo y el del anillo están mezclados un 40 % hacia `#262626`. Se distinguen por galaxia y no se ven como neón. Las nebulosas se ven igual que antes.
 - [ ] `docs/CHANGELOG.md`, `docs/TASKS.md` y `docs/CONTEXT.md` reflejan lo implementado.
 
 ## Decisions
@@ -328,6 +349,8 @@ Convenciones:
 - **No:** meter todo en el hook, ni sub-hooks en `src/hooks/galaxy/`. Los sub-hooks compartirían la escena por refs sin aportar nada a la reactividad.
 - **No:** leyenda en móvil. Queda para otro spec; en móvil se enfoca con un tap en la nebulosa.
 - **Sí:** los materiales del core pasan a `transparent: true` siempre, para poder interpolar la opacidad.
+- **Sí:** se suaviza el tono de las esferas (`baseEmissive` 0.6 y color mezclado un 40 % hacia gris oscuro, también en el halo y el anillo). Se añadió al spec antes de cerrarlo, a petición del usuario, porque se veían saturadas y con aspecto de neón. Los factores de resaltado se aplican sobre la nueva base.
+- **No:** tocar las nebulosas, la point light ni el color de las líneas, que siguen usando el `galaxyColor` original.
 
 ## Risks
 
@@ -338,7 +361,7 @@ Convenciones:
 | Fugas de GPU al crear y destruir líneas en cada hover                                                           | `RelationLines.dispose()` libera geometrías y materiales de las líneas, las partículas y el pulso. El criterio de `renderer.info.memory` lo verifica. |
 | Un pick de nebulosa accidental al intentar clicar una estrella pequeña                                          | La estrella siempre tiene prioridad y el radio de la nebulosa es solo el 30% de su tamaño.                                                                  |
 | Un click en espacio vacío quita el foco sin querer                                                              | Solo cuenta un click con menos de`CLICK_TOLERANCE_PX` de desplazamiento. Arrastrar no afecta.                                                              |
-| La galaxia enfocada desaparece al cambiar los datos (p. ej. al pasar de demo a real)                             | Un effect en`StarMap3D` resetea el foco a `null` si la key no está en `galaxies`.                                                                     |
+| La galaxia enfocada desaparece al cambiar los datos (p. ej. al pasar de demo a real)                             | `StarMap3D` deriva en render `activeFocusKey`, que es `null` si la key no está en `galaxies`. Se evita un `setState` dentro de un effect, que la regla `react-hooks/set-state-in-effect` prohíbe. |
 | Coste por frame de lerps de materiales con muchos cursos                                                         | Son O(n) asignaciones numéricas sin allocations. El set activo solo se recalcula cuando cambian el hover o el foco.                                         |
 
 ## What is **not** in this spec

@@ -2,6 +2,51 @@
 
 Historial de cambios del frontend de Code Quest 2026.
 
+## 2026-09-23
+
+### Añadido
+
+- Foco de galaxia en `/starmap` (SPEC 03). Se activa haciendo click en una
+  nebulosa o en la leyenda (que funciona como toggle), y se quita con `Esc`,
+  con "Vista general" o con un click en espacio vacío. Al enfocar, la cámara
+  vuela al centro de la galaxia.
+- Resaltado de galaxia. El hover sobre una estrella resalta todas sus
+  galaxias; el foco tiene prioridad sobre el hover. Las demás estrellas y
+  nebulosas se atenúan con una transición suave, calculada en el loop sin
+  renders de React.
+- Picking de nebulosas por la distancia del rayo a su centro. La estrella
+  tiene prioridad, y el cursor pasa a `pointer` sobre una nebulosa clicable.
+- Leyenda interactiva, con `<button aria-pressed>` y las galaxias no enfocadas
+  atenuadas.
+- Líneas de relaciones con `Line2` + `LineMaterial`:
+  - grosor en píxeles según el tipo y la posición del slug;
+  - prerequisitos rojos con partículas;
+  - relacionados azules con un dash animado;
+  - crecimiento desde el origen y un pulso al aparecer.
+- Líneas persistentes, con brillo reducido, del curso seleccionado mientras el
+  panel está abierto.
+- Soporte de `prefers-reduced-motion`: sin partículas, dash animado ni pulso,
+  y con zoom instantáneo al enfocar un curso o una galaxia.
+- Módulos nuevos:
+  - `src/lib/galaxy/galaxyHighlight.ts`, con funciones puras;
+  - `src/lib/galaxy/relationLines.ts`, con código imperativo de Three.js.
+
+### Cambiado
+
+- `useGalaxyScene` recibe dos opciones nuevas, `focusedGalaxyKey` y
+  `onFocusGalaxy`, y exporta `CourseNode`.
+- Los materiales del core de las estrellas son siempre transparentes, para
+  poder interpolar su opacidad.
+- Tono de las esferas más suave:
+  - `emissiveIntensity` base de 0.6 en los cursos activos;
+  - el color del core, del halo y del anillo se mezcla un 40 % hacia
+    `#262626`;
+  - las nebulosas no cambian.
+- "Vista general" y la navegación desde el panel también limpian el foco de
+  galaxia.
+- Se sustituyen `LineSegments` y `LineBasicMaterial`, que siempre medían 1 px,
+  por `RelationLines`.
+
 ## 2026-09-20
 
 ### Corregido

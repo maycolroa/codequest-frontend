@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { CourseLevel, Galaxy, GalaxyCourse } from '@/types'
+import { courseEmphasis, resolveActiveGalaxies, resolveIntensifiedNebula } from '@/lib/galaxy/galaxyHighlight'
+import type { Emphasis } from '@/lib/galaxy/galaxyHighlight'
+import { createRelationLines, SELECTED_LINE_INTENSITY } from '@/lib/galaxy/relationLines'
+import type { RelationLines } from '@/lib/galaxy/relationLines'
 
 export interface UseGalaxySceneOptions {
   containerRef: React.RefObject<HTMLDivElement | null>
@@ -12,6 +16,8 @@ export interface UseGalaxySceneOptions {
   selectedId: string | null // slug del curso seleccionado
   onHover: (slug: string | null) => void
   onSelect: (slug: string) => void
+  focusedGalaxyKey: string | null
+  onFocusGalaxy: (key: string | null) => void // click en nebulosa (key) o en espacio vacío (null)
 }
 
 export interface UseGalaxySceneResult {
@@ -31,9 +37,12 @@ interface SceneContext {
   renderer: THREE.WebGLRenderer
   controls: OrbitControls
   setHovered: (slug: string | null) => void
+  refreshEmphasis: () => void
+  refreshSelectedLines: () => void
+  clearSelectedLines: () => void
 }
 
-interface CourseNode {
+export interface CourseNode {
   course: GalaxyCourse
   group: THREE.Group
   core: THREE.Mesh
@@ -41,6 +50,15 @@ interface CourseNode {
   ring: THREE.Mesh | null
   light: THREE.PointLight | null
   baseRadius: number
+  baseOpacity: number // 1 o INACTIVE_OPACITY
+  baseEmissive: number // ACTIVE_EMISSIVE o INACTIVE_EMISSIVE
+}
+
+interface NebulaNode {
+  galaxy: Galaxy
+  sprite: THREE.Sprite
+  material: THREE.SpriteMaterial
+  baseSize: number
 }
 
 // Escala del mundo: los cursos del contrato llegan hasta ~±70 unidades del origen.
@@ -50,6 +68,11 @@ const STAR_COUNT = 2500
 const SHOOTING_STAR_COUNT = 4
 const LEVEL_RADIUS: Record<CourseLevel, number> = { beginner: 0.3, intermediate: 0.5, advanced: 0.7 }
 const INACTIVE_OPACITY = 0.35
+const ACTIVE_EMISSIVE = 0.6
+const INACTIVE_EMISSIVE = 0.3
+// Tono de las esferas: el color de la galaxia mezclado hacia gris oscuro, como estrellas lejanas y no neón
+const STAR_TONE_GRAY = new THREE.Color('#262626')
+const STAR_TONE_MIX = 0.4
 // Distancia al centro de la galaxia para cursos sin coordenadas
 const FALLBACK_MIN_DISTANCE = 4
 const FALLBACK_MAX_DISTANCE = 12
@@ -58,14 +81,29 @@ const NEBULA_MIN_SIZE = 30
 // Diámetro de la nebulosa respecto a la distancia máxima de sus cursos al centro
 const NEBULA_SIZE_FACTOR = 2.8
 const HOVER_SCALE = 1.35
-const PREREQUISITE_LINE_COLOR = '#EF4444'
-const RELATED_LINE_COLOR = '#3B82F6'
 const TOOLTIP_OFFSET_PX = 14
 const SELECTED_SCALE = 1.2
 // Movimiento máximo entre pointerdown y pointerup para contar como click o tap
 const CLICK_TOLERANCE_PX = 6
 const FOCUS_DISTANCE = 14
 const FLIGHT_LERP = 0.08
+const HALO_OPACITY = 0.35
+const RING_OPACITY = 0.8
+const LIGHT_INTENSITY = 2.5
+const LIGHT_HOVER_INTENSITY = 6
+// Resaltado de galaxia: interpolación por frame hacia los valores de cada Emphasis
+const EMPHASIS_LERP = 0.1
+const DIMMED_OPACITY = 0.2
+const EMPHASIS_EMISSIVE: Record<Emphasis, number> = { neutral: 1, highlighted: 1.4, dimmed: 0.3 }
+// Halo, anillo y point light
+const EMPHASIS_GLOW: Record<Emphasis, number> = { neutral: 1, highlighted: 1.3, dimmed: 0.2 }
+const NEBULA_INTENSIFIED_OPACITY = 0.6
+const NEBULA_INTENSIFIED_SCALE = 1.25
+const NEBULA_DIMMED_OPACITY = 0.12
+// Radio clicable de la nebulosa respecto a su tamaño: el brillo visible es mucho menor que el sprite
+const NEBULA_HIT_FACTOR = 0.3
+const GALAXY_FOCUS_MIN_DISTANCE = 30
+const GALAXY_FOCUS_FACTOR = 1.1
 
 const nebulaVertexShader = `
   varying vec2 vUv;
@@ -223,32 +261,49 @@ function makeCircleTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas)
 }
 
-function makeLinks(from: THREE.Vector3, slugs: string[], nodes: Map<string, CourseNode>, color: string): THREE.LineSegments | null {
-  // Los slugs que no están en la escena no dibujan línea
-  const targets = slugs.flatMap((slug) => {
-    const node = nodes.get(slug)
-    return node ? [node.group.position] : []
-  })
-  if (targets.length === 0) return null
-  const points = targets.flatMap((target) => [from, target])
-  const geometry = new THREE.BufferGeometry().setFromPoints(points)
-  const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false })
-  return new THREE.LineSegments(geometry, material)
-}
-
-export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses, selectedId, onHover, onSelect }: UseGalaxySceneOptions): UseGalaxySceneResult {
+export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses, selectedId, onHover, onSelect, focusedGalaxyKey, onFocusGalaxy }: UseGalaxySceneOptions): UseGalaxySceneResult {
   const [isSupported] = useState(detectWebGL)
   const contextRef = useRef<SceneContext | null>(null)
   const nodesRef = useRef<Map<string, CourseNode>>(new Map())
+  const nebulaeRef = useRef<Map<string, NebulaNode>>(new Map()) // por galaxyKey
   const flightRef = useRef<CameraFlight | null>(null)
   // Curso a enfocar en cuanto exista su nodo (p. ej. tras limpiar filtros)
   const pendingFocusRef = useRef<string | null>(null)
   const selectedIdRef = useRef(selectedId)
   const onHoverRef = useRef(onHover)
   const onSelectRef = useRef(onSelect)
-  useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
+  const focusedGalaxyKeyRef = useRef(focusedGalaxyKey)
+  const onFocusGalaxyRef = useRef(onFocusGalaxy)
+  useEffect(() => {
+    selectedIdRef.current = selectedId
+    contextRef.current?.refreshSelectedLines()
+  }, [selectedId])
   useEffect(() => { onHoverRef.current = onHover }, [onHover])
   useEffect(() => { onSelectRef.current = onSelect }, [onSelect])
+  useEffect(() => { onFocusGalaxyRef.current = onFocusGalaxy }, [onFocusGalaxy])
+
+  // prefers-reduced-motion: se quita el movimiento, no la información visual
+  const reducedMotionRef = useRef(false)
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    reducedMotionRef.current = query.matches
+    const onChange = (event: MediaQueryListEvent): void => { reducedMotionRef.current = event.matches }
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+
+  // Con reduced motion la cámara salta a la posición final en lugar de animarse
+  const startFlight = useCallback((flight: CameraFlight): void => {
+    const context = contextRef.current
+    if (!context || !reducedMotionRef.current) {
+      flightRef.current = flight
+      return
+    }
+    flightRef.current = null
+    context.controls.target.copy(flight.target)
+    context.camera.position.copy(flight.position)
+    context.controls.update()
+  }, [])
 
   const flyToNode = useCallback((node: CourseNode): void => {
     const context = contextRef.current
@@ -257,8 +312,26 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     const target = node.group.position.clone()
     // Se conserva el ángulo de vista actual y se acerca la cámara
     const direction = camera.position.clone().sub(controls.target).normalize()
-    flightRef.current = { target, position: target.clone().addScaledVector(direction, FOCUS_DISTANCE) }
-  }, [])
+    startFlight({ target, position: target.clone().addScaledVector(direction, FOCUS_DISTANCE) })
+  }, [startFlight])
+
+  const flyToGalaxy = useCallback((key: string): void => {
+    const context = contextRef.current
+    const nebula = nebulaeRef.current.get(key)
+    if (!context || !nebula) return
+    const { camera, controls } = context
+    const { x, y, z } = nebula.galaxy.center
+    const target = new THREE.Vector3(x, y, z)
+    const direction = camera.position.clone().sub(controls.target).normalize()
+    const distance = Math.max(GALAXY_FOCUS_MIN_DISTANCE, nebula.baseSize * GALAXY_FOCUS_FACTOR)
+    startFlight({ target, position: target.clone().addScaledVector(direction, distance) })
+  }, [startFlight])
+
+  useEffect(() => {
+    focusedGalaxyKeyRef.current = focusedGalaxyKey
+    contextRef.current?.refreshEmphasis()
+    if (focusedGalaxyKey) flyToGalaxy(focusedGalaxyKey)
+  }, [focusedGalaxyKey, flyToGalaxy])
 
   const focusCourse = useCallback((slug: string): void => {
     const node = nodesRef.current.get(slug)
@@ -407,46 +480,103 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
 
     // Hover: solo el slug pasa a React; escala, líneas y tooltip se actualizan aquí
     let hoveredSlug: string | null = null
-    let hoverLines: THREE.LineSegments[] = []
+    // Galaxias resaltadas: se recalculan solo cuando cambian el hover o el foco, no en cada frame
+    let activeGalaxies: Set<string> | null = null
+    let intensifiedNebula: string | null = null
+    const refreshEmphasis = (): void => {
+      const hoveredCourse = hoveredSlug ? nodesRef.current.get(hoveredSlug)?.course ?? null : null
+      activeGalaxies = resolveActiveGalaxies(focusedGalaxyKeyRef.current, hoveredCourse)
+      intensifiedNebula = resolveIntensifiedNebula(focusedGalaxyKeyRef.current, hoveredCourse)
+    }
+    refreshEmphasis()
+    // LineMaterial dibuja el grosor en píxeles: necesita el tamaño del canvas
+    const lineResolution = new THREE.Vector2(container.clientWidth, container.clientHeight)
+    // Dos slots: líneas del curso en hover y líneas persistentes del curso seleccionado
+    let hoverLines: RelationLines | null = null
+    let selectedLines: RelationLines | null = null
+    let selectedLinesSlug: string | null = null
+    const makeLines = (node: CourseNode): RelationLines | null => {
+      const lines = createRelationLines({ origin: node, nodes: nodesRef.current, pulseTexture: circleTexture, resolution: lineResolution, reducedMotion: reducedMotionRef.current })
+      if (lines) scene.add(lines.group)
+      return lines
+    }
     const clearHoverLines = (): void => {
-      hoverLines.forEach((line) => {
-        scene.remove(line)
-        line.geometry.dispose()
-        ;(line.material as THREE.Material).dispose()
-      })
-      hoverLines = []
+      hoverLines?.dispose()
+      hoverLines = null
+    }
+    const clearSelectedLines = (): void => {
+      selectedLines?.dispose()
+      selectedLines = null
+      selectedLinesSlug = null
+    }
+    // Se llama al cambiar la selección y tras el rebuild de nodos
+    const refreshSelectedLines = (): void => {
+      const slug = selectedIdRef.current
+      if (slug === selectedLinesSlug) return
+      // Si el nuevo seleccionado está en hover, sus líneas pasan al slot de seleccionado sin recrearse
+      const reused = slug && slug === hoveredSlug ? hoverLines : null
+      if (reused) hoverLines = null
+      // Si el anterior seleccionado sigue en hover, sus líneas pasan al slot de hover
+      if (selectedLines && selectedLinesSlug === hoveredSlug && !hoverLines) {
+        hoverLines = selectedLines
+        hoverLines.setIntensity(1)
+      } else {
+        selectedLines?.dispose()
+      }
+      selectedLinesSlug = slug
+      const node = slug ? nodesRef.current.get(slug) : undefined
+      selectedLines = reused ?? (node ? makeLines(node) : null)
+      selectedLines?.setIntensity(slug === hoveredSlug ? 1 : SELECTED_LINE_INTENSITY)
     }
     const setHovered = (slug: string | null): void => {
       if (slug === hoveredSlug) return
       hoveredSlug = slug
+      refreshEmphasis()
       clearHoverLines()
       const node = slug ? nodesRef.current.get(slug) : undefined
-      if (node) {
-        const from = node.group.position
-        hoverLines = [
-          makeLinks(from, node.course.prerequisites, nodesRef.current, PREREQUISITE_LINE_COLOR),
-          makeLinks(from, node.course.related, nodesRef.current, RELATED_LINE_COLOR),
-        ].filter((line): line is THREE.LineSegments => line !== null)
-        hoverLines.forEach((line) => scene.add(line))
-      }
+      // Si el curso en hover es el seleccionado se dibuja un solo juego de líneas, con brillo completo
+      const isSelected = Boolean(node) && slug === selectedLinesSlug
+      if (node && !isSelected) hoverLines = makeLines(node)
+      selectedLines?.setIntensity(isSelected ? 1 : SELECTED_LINE_INTENSITY)
       canvas.style.cursor = node ? 'pointer' : ''
       onHoverRef.current(node ? slug : null)
     }
 
     const raycaster = new THREE.Raycaster()
     const pointer = new THREE.Vector2()
-    const pickSlug = (event: PointerEvent): string | null => {
+    const setRay = (event: PointerEvent): void => {
       const rect = canvas.getBoundingClientRect()
       pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(pointer, camera)
+    }
+    const pickSlug = (): string | null => {
       const cores = Array.from(nodesRef.current.values(), (node) => node.core)
       const hit = raycaster.intersectObjects(cores, false)[0]
       return hit ? (hit.object.userData.slug as string) : null
     }
+    // Distancia del rayo al centro, no el raycast del Sprite (su cuadrado se solapa entre galaxias)
+    const pickNebula = (): string | null => {
+      let pickedKey: string | null = null
+      let pickedDistance = Infinity
+      nebulaeRef.current.forEach(({ galaxy, sprite, baseSize }) => {
+        if (raycaster.ray.distanceToPoint(sprite.position) >= baseSize * NEBULA_HIT_FACTOR) return
+        // Si varias cumplen, gana la de centro más cercano a la cámara
+        const distance = camera.position.distanceTo(sprite.position)
+        if (distance < pickedDistance) {
+          pickedDistance = distance
+          pickedKey = galaxy.key
+        }
+      })
+      return pickedKey
+    }
     const onPointerMove = (event: PointerEvent): void => {
       // Mientras se arrastra para rotar no se cambia el hover
       if (event.buttons !== 0) return
-      setHovered(pickSlug(event))
+      setRay(event)
+      const slug = pickSlug()
+      setHovered(slug)
+      // La estrella tiene prioridad; sin estrella, una nebulosa clicable también muestra pointer
+      if (!slug) canvas.style.cursor = pickNebula() ? 'pointer' : ''
     }
     const onPointerLeave = (): void => setHovered(null)
 
@@ -458,11 +588,16 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     const onPointerUp = (event: PointerEvent): void => {
       if (event.button !== 0) return
       if (pointerDown.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) >= CLICK_TOLERANCE_PX) return
-      const slug = pickSlug(event)
+      setRay(event)
+      const slug = pickSlug()
       // En táctil no hay hover: el tap muestra líneas y tooltip
       if (event.pointerType !== 'mouse') setHovered(slug)
       const node = slug ? nodesRef.current.get(slug) : undefined
-      if (!slug || !node) return
+      if (!slug || !node) {
+        // Sin estrella: nebulosa enfoca su galaxia, espacio vacío quita el foco
+        onFocusGalaxyRef.current(pickNebula())
+        return
+      }
       onSelectRef.current(slug)
       flyToNode(node)
     }
@@ -496,7 +631,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       tooltip.style.visibility = 'visible'
     }
 
-    contextRef.current = { scene, camera, renderer, controls, setHovered }
+    contextRef.current = { scene, camera, renderer, controls, setHovered, refreshEmphasis, refreshSelectedLines, clearSelectedLines }
 
     const resize = (): void => {
       const width = container.clientWidth
@@ -505,6 +640,9 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       camera.aspect = width / height
       camera.updateProjectionMatrix()
       renderer.setSize(width, height, false)
+      lineResolution.set(width, height)
+      hoverLines?.setResolution(width, height)
+      selectedLines?.setResolution(width, height)
     }
     const resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(container)
@@ -545,19 +683,46 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
         }
       })
 
-      nodesRef.current.forEach(({ course, core, halo, ring, light }) => {
+      nodesRef.current.forEach(({ course, core, halo, ring, light, baseOpacity, baseEmissive }) => {
         const isHovered = course.slug === hoveredSlug
+        const emphasis = courseEmphasis(course, activeGalaxies)
+        const glow = EMPHASIS_GLOW[emphasis]
         const scale = isHovered ? HOVER_SCALE : course.slug === selectedIdRef.current ? SELECTED_SCALE : 1
         core.scale.lerp(targetScale.setScalar(scale), 0.12)
         core.rotation.y += 0.01
+        const coreMat = core.material as THREE.MeshStandardMaterial
+        const coreOpacity = emphasis === 'dimmed' ? Math.min(DIMMED_OPACITY, baseOpacity) : baseOpacity
+        coreMat.opacity = THREE.MathUtils.lerp(coreMat.opacity, coreOpacity, EMPHASIS_LERP)
+        coreMat.emissiveIntensity = THREE.MathUtils.lerp(coreMat.emissiveIntensity, baseEmissive * EMPHASIS_EMISSIVE[emphasis], EMPHASIS_LERP)
         if (halo) {
           const haloScale = isHovered ? HOVER_SCALE * 1.4 : 1
           halo.scale.lerp(targetScale.setScalar(haloScale), 0.1)
           halo.rotation.z -= 0.006
+          const haloMat = halo.material as THREE.MeshBasicMaterial
+          haloMat.opacity = THREE.MathUtils.lerp(haloMat.opacity, Math.min(1, HALO_OPACITY * glow), EMPHASIS_LERP)
         }
-        if (ring) ring.rotation.z += 0.004
-        if (light) light.intensity = THREE.MathUtils.lerp(light.intensity, isHovered ? 6 : 2.5, 0.1)
+        if (ring) {
+          ring.rotation.z += 0.004
+          const ringMat = ring.material as THREE.MeshBasicMaterial
+          const ringOpacity = course.isActive ? RING_OPACITY : INACTIVE_OPACITY
+          ringMat.opacity = THREE.MathUtils.lerp(ringMat.opacity, Math.min(1, ringOpacity * glow), EMPHASIS_LERP)
+        }
+        if (light) {
+          const intensity = (isHovered ? LIGHT_HOVER_INTENSITY : LIGHT_INTENSITY) * glow
+          light.intensity = THREE.MathUtils.lerp(light.intensity, intensity, EMPHASIS_LERP)
+        }
       })
+
+      nebulaeRef.current.forEach(({ galaxy, sprite, material, baseSize }) => {
+        const isIntensified = galaxy.key === intensifiedNebula
+        const opacity = isIntensified ? NEBULA_INTENSIFIED_OPACITY : activeGalaxies ? NEBULA_DIMMED_OPACITY : NEBULA_OPACITY
+        const size = isIntensified ? baseSize * NEBULA_INTENSIFIED_SCALE : baseSize
+        material.opacity = THREE.MathUtils.lerp(material.opacity, opacity, EMPHASIS_LERP)
+        sprite.scale.lerp(targetScale.set(size, size, 1), EMPHASIS_LERP)
+      })
+
+      hoverLines?.update(delta, elapsed)
+      selectedLines?.update(delta, elapsed)
 
       const flight = flightRef.current
       if (flight) {
@@ -582,6 +747,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       controls.removeEventListener('start', onControlsStart)
       flightRef.current = null
       clearHoverLines()
+      clearSelectedLines()
       contextRef.current = null
       controls.dispose()
       backgroundGeo.dispose()
@@ -609,7 +775,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
 
     courses.forEach((course) => {
       const baseRadius = LEVEL_RADIUS[course.level]
-      const color = new THREE.Color(course.galaxyColor)
+      const color = new THREE.Color(course.galaxyColor).lerp(STAR_TONE_GRAY, STAR_TONE_MIX)
       const nodeGroup = new THREE.Group()
       nodeGroup.position.copy(resolvePosition(course, galaxyByKey))
       const primaryGalaxy = galaxyByKey.get(course.galaxies[0])
@@ -619,15 +785,18 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
         galaxyExtent.set(primaryGalaxy.key, Math.max(galaxyExtent.get(primaryGalaxy.key) ?? 0, distance))
       }
 
+      const baseOpacity = course.isActive ? 1 : INACTIVE_OPACITY
+      const baseEmissive = course.isActive ? ACTIVE_EMISSIVE : INACTIVE_EMISSIVE
       const coreGeo = new THREE.SphereGeometry(baseRadius, 32, 32)
+      // Siempre transparente para poder interpolar la opacidad al resaltar
       const coreMat = new THREE.MeshStandardMaterial({
         color,
         emissive: color,
-        emissiveIntensity: course.isActive ? 1.4 : 0.3,
+        emissiveIntensity: baseEmissive,
         roughness: 0.15,
         metalness: 0.7,
-        transparent: !course.isActive,
-        opacity: course.isActive ? 1 : INACTIVE_OPACITY,
+        transparent: true,
+        opacity: baseOpacity,
       })
       const core = new THREE.Mesh(coreGeo, coreMat)
       core.userData = { slug: course.slug }
@@ -639,13 +808,13 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       let light: THREE.PointLight | null = null
       if (course.isActive) {
         const haloGeo = new THREE.SphereGeometry(baseRadius * 1.55, 24, 24)
-        const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false })
+        const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: HALO_OPACITY, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false })
         halo = new THREE.Mesh(haloGeo, haloMat)
         nodeGroup.add(halo)
         geometries.push(haloGeo)
         materials.push(haloMat)
 
-        light = new THREE.PointLight(color, 2.5, 8, 2)
+        light = new THREE.PointLight(course.galaxyColor, LIGHT_INTENSITY, 8, 2)
         nodeGroup.add(light)
       }
 
@@ -655,10 +824,10 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       if (secondGalaxy) {
         const ringGeo = new THREE.RingGeometry(baseRadius * 1.9, baseRadius * 2.05, 64)
         const ringMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(secondGalaxy.color),
+          color: new THREE.Color(secondGalaxy.color).lerp(STAR_TONE_GRAY, STAR_TONE_MIX),
           side: THREE.DoubleSide,
           transparent: true,
-          opacity: course.isActive ? 0.8 : INACTIVE_OPACITY,
+          opacity: course.isActive ? RING_OPACITY : INACTIVE_OPACITY,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         })
@@ -670,11 +839,12 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       }
 
       nodesGroup.add(nodeGroup)
-      nodes.set(course.slug, { course, group: nodeGroup, core, halo, ring, light, baseRadius })
+      nodes.set(course.slug, { course, group: nodeGroup, core, halo, ring, light, baseRadius, baseOpacity, baseEmissive })
     })
 
     // Una nebulosa por galaxia, en su centro y con su color
     const nebulaTexture = makeNebulaTexture()
+    const nebulae = new Map<string, NebulaNode>()
     galaxies.forEach((galaxy) => {
       const nebulaMat = new THREE.SpriteMaterial({
         map: nebulaTexture,
@@ -690,10 +860,13 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       nebula.scale.set(size, size, 1)
       nodesGroup.add(nebula)
       materials.push(nebulaMat)
+      nebulae.set(galaxy.key, { galaxy, sprite: nebula, material: nebulaMat, baseSize: size })
     })
 
     context.scene.add(nodesGroup)
     nodesRef.current = nodes
+    nebulaeRef.current = nebulae
+    context.refreshSelectedLines()
     const pendingNode = pendingFocusRef.current ? nodes.get(pendingFocusRef.current) : undefined
     if (pendingNode) {
       pendingFocusRef.current = null
@@ -703,8 +876,10 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     return () => {
       // El curso en hover puede desaparecer con el rebuild: se limpian sus líneas
       context.setHovered(null)
+      context.clearSelectedLines()
       context.scene.remove(nodesGroup)
       nodesRef.current = new Map()
+      nebulaeRef.current = new Map()
       nodes.forEach(({ light }) => light?.dispose())
       geometries.forEach((geometry) => geometry.dispose())
       materials.forEach((material) => material.dispose())

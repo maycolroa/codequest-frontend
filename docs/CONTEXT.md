@@ -38,6 +38,10 @@ codequest-frontend/
 │   │   └── galaxy/                # StarMap3D, CourseTooltip, CoursePanel
 │   ├── hooks/                   # Custom hooks (lógica reutilizable):
 │   │                            # useCourseGalaxy (datos), useGalaxyScene (Three.js)
+│   ├── lib/
+│   │   └── galaxy/                # Módulos de la galaxia 3D que usa useGalaxyScene
+│   │       ├── galaxyHighlight.ts   # Funciones puras de resaltado (sin three ni react)
+│   │       └── relationLines.ts     # Líneas de relaciones con Line2 (Three.js)
 │   ├── pages/                   # Componentes de página (uno por ruta)
 │   ├── services/                # Instancia de Axios y servicios por módulo
 │   │   ├── api.ts                 # Instancia Axios configurada
@@ -187,6 +191,55 @@ interface CourseGalaxyResponse {
 Estos tipos son la fuente de verdad para lo que devuelven los servicios de
 Axios y lo que consumen los stores y componentes. Cualquier cambio en el
 contrato de la API debe reflejarse primero aquí.
+
+## Galaxia 3D (`/starmap`)
+
+`StarMap3D` guarda el estado de React: búsqueda, nivel, curso seleccionado y
+`focusedGalaxyKey`. `useGalaxyScene` gestiona la escena de Three.js. El hover
+vive en variables del closure del loop de animación, para que mover el mouse
+no provoque renders de React en cada frame.
+
+- **Foco de galaxia**
+  - **Qué es:** `focusedGalaxyKey: string | null` en `StarMap3D`.
+  - **Cómo se activa:** con un click en una nebulosa, que el hook comunica
+    mediante `onFocusGalaxy`, o con la leyenda, que funciona como toggle.
+  - **Cómo se quita:** con un click en espacio vacío (no un arrastre), `Esc`,
+    "Vista general" o al navegar desde el panel a un curso.
+  - **Si la galaxia desaparece de los datos:** el valor que recibe el hook se
+    deriva en render (`activeFocusKey`) y pasa a `null`.
+  - **Cámara:** al enfocar, vuela a `galaxy.center`.
+- **Resaltado**
+  - Las funciones de `galaxyHighlight.ts` resuelven qué galaxias están
+    activas: foco > hover > nada.
+  - Un curso pertenece a una galaxia si su key está en cualquier posición de
+    `galaxies[]`.
+  - La nebulosa intensificada es la enfocada o la de `galaxies[0]` del curso
+    en hover.
+  - El set activo solo se recalcula cuando cambian el hover o el foco. En cada
+    frame, el loop interpola la opacidad y el emissive de cada estrella, y la
+    opacidad y la escala de cada nebulosa.
+- **Tono de las esferas**
+  - El color de la galaxia se mezcla un 40 % hacia `#262626` en el core, el
+    halo y el anillo.
+  - `emissiveIntensity` base: 0.6 en los cursos activos y 0.3 en los
+    inactivos.
+  - La point light, las líneas y las nebulosas usan el color original.
+- **Relaciones** (`relationLines.ts`)
+  - Cada juego de líneas es un `RelationLines` anclado en el curso origen.
+  - Prerequisitos: rojos, con partículas en un solo `THREE.Points`.
+    Relacionados: azules, con dash animado.
+  - El grosor, en píxeles, depende del tipo y del orden del slug.
+  - El hook mantiene dos slots:
+    - `hoverLines`, con brillo completo;
+    - `selectedLines`, con brillo 0.45, que sube a 1 con hover sobre el curso
+      seleccionado.
+  - Los dos slots se liberan con `dispose()` en cada rebuild de nodos.
+- **Reduced motion:** el hook lee `prefers-reduced-motion: reduce` con
+  `matchMedia` y reacciona a sus cambios. Con reduced motion:
+  - no hay partículas, dash animado ni pulso;
+  - las líneas aparecen completas;
+  - el zoom a curso y a galaxia es instantáneo;
+  - el resaltado y las líneas se siguen viendo.
 
 ## Variables de entorno
 
