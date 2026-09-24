@@ -26,6 +26,8 @@ export default function AssessmentPage(): JSX.Element {
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<AssessmentPayload>({ interests: [], level: '', goals: [], technologies: [] })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({ resolver: zodResolver(schema), shouldUnregister: true })
   const [field, title, choices] = steps[step]
   const watchedAnswer = watch('answer')
@@ -37,8 +39,16 @@ export default function AssessmentPage(): JSX.Element {
     const next = { ...answers, [field]: field === 'level' ? values[0] : values }
     setAnswers(next)
     if (step === steps.length - 1) {
-      if (import.meta.env.VITE_MOCK_MODE === 'true') await assessmentsService.submit('mock', next)
-      navigate('/dashboard')
+      setSubmitting(true)
+      setSubmitError('')
+      try {
+        await assessmentsService.submit(next)
+        navigate('/starmap', { replace: true, state: { fromAssessment: true } })
+      } catch {
+        setSubmitError('No pudimos crear tu ruta. Revisa tu conexión e inténtalo de nuevo.')
+      } finally {
+        setSubmitting(false)
+      }
     } else setStep((current) => current + 1)
   }
   const options = choices.map((choice) => <label className="assessment-option" key={choice}>
@@ -74,15 +84,16 @@ export default function AssessmentPage(): JSX.Element {
         <form onSubmit={handleSubmit(submit)}>
           <Step><div className="assessment-options">{options}</div></Step>
           {errors.answer && <p className="assessment-error">Selecciona al menos una opción para continuar.</p>}
+          {submitError && <p className="assessment-error">{submitError}</p>}
           <div className="assessment-actions">
             <button type="button" className="assessment-back" onClick={() => step === 0 ? navigate('/dashboard') : setStep((current) => current - 1)}><ArrowLeft size={15} /> Atrás</button>
-            <button className="assessment-next" type="submit">{step === steps.length - 1 ? 'Crear mi ruta' : 'Siguiente aterrizaje'} <ArrowRight size={16} /></button>
+            <button className="assessment-next" type="submit" disabled={submitting}>{submitting ? 'Creando ruta...' : step === steps.length - 1 ? 'Crear mi ruta' : 'Siguiente aterrizaje'} {!submitting && <ArrowRight size={16} />}</button>
           </div>
         </form>
       </div>
       <aside className="assessment-devi" aria-label="Devi, tu guía de aprendizaje">
         <span className="assessment-interest-orbit-ring" aria-hidden="true" />
-        {orbitingInterests.map((interest, index) => <span className="assessment-interest assessment-interest-orbiting" style={{ '--orbit-delay': `${index * -1.2}s`, '--orbit-start': `${(index * 360) / Math.max(orbitingInterests.length, 1)}deg`, '--orbit-radius': `${210 + (index % 3) * 32}px` } as React.CSSProperties} key={interest}>{interest}</span>)}
+        {orbitingInterests.map((interest, index) => <span className="assessment-interest assessment-interest-orbiting" style={{ '--orbit-delay': `${-(index * 18) / Math.max(orbitingInterests.length, 1)}s`, '--orbit-radius': `${210}px` } as React.CSSProperties} key={interest}>{interest}</span>)}
         <img src="/assets/devi-laptop.png" alt="" />
         <p>{field === 'interests' && answers.interests.length ? `${answers.interests.length} sistemas en órbita` : 'Tu ruta, a tu ritmo'}</p>
       </aside>

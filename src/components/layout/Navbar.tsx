@@ -19,7 +19,7 @@ export default function Navbar(): JSX.Element {
       <img src="/assets/logo-devtalles.png" alt="DevTalles" />
     </Link>
     <nav className="app-navbar-links" aria-label="Navegación principal">
-      <a href="#universo">Universo</a>
+      <Link to="/starmap">Universo</Link>
       <a href="#constelaciones">Constelaciones</a>
       <a href="#bitacora">Bitácora</a>
     </nav>
