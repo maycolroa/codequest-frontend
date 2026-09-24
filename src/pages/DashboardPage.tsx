@@ -1,15 +1,17 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight, Compass, Orbit, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Navbar from '@/components/layout/Navbar'
 import { useAuthStore } from '@/stores/auth.store'
-import { usePathsStore } from '@/stores/paths.store'
+import { ASSESSMENT_STORAGE_KEY } from '@/services/assessments.service'
+import { coursesService } from '@/services/courses.service'
+import type { CourseGalaxyResponse, UserCourseProgress } from '@/types'
 import { useStarMap } from '@/hooks/useStarMap'
 import { useGalaxyWarp } from '@/hooks/useGalaxyWarp'
 import './galaxy-effect.css'
 
 const streak = Array.from({ length: 28 }, (_, index) => index < 23 || index === 25)
+
 let constellationSeed = 20260921
 const constellationRandom = (): number => {
   constellationSeed = (constellationSeed * 1664525 + 1013904223) >>> 0
@@ -25,21 +27,23 @@ export default function DashboardPage(): JSX.Element {
   const { canvasRef } = useStarMap({ count: 760, background: true })
   const galaxyWarpRef = useGalaxyWarp()
   const user = useAuthStore((state) => state.user)
-  const { paths, loading, fetchPaths } = usePathsStore()
+  const [hasAssessment, setHasAssessment] = useState(false)
+  const [progress, setProgress] = useState<UserCourseProgress[]>([])
+  const [catalog, setCatalog] = useState<CourseGalaxyResponse | null>(null)
 
   useEffect(() => {
-    void fetchPaths().catch(() => undefined)
+    setHasAssessment(Boolean(window.localStorage.getItem(ASSESSMENT_STORAGE_KEY)))
+    void Promise.all([coursesService.getMyProgress(), coursesService.getCourseGalaxy()])
+      .then(([progressData, galaxyData]) => { setProgress(progressData); setCatalog(galaxyData) })
+      .catch(() => undefined)
     window.scrollTo(0, 0)
     if (window.location.hash === '#constelaciones') {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
       window.scrollTo(0, 0)
     }
-  }, [fetchPaths])
+  }, [])
 
-  if (loading) return <section className="dashboard-screen"><LoadingSpinner /></section>
-
-  const hasStartedCourses = paths.some((path) => path.courses.some((course) => course.completed))
-  if (!hasStartedCourses) {
+  if (!hasAssessment) {
     return <section className="dashboard-screen dashboard-home">
       <canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" />
       <canvas ref={galaxyWarpRef} className="dashboard-galaxy-motion" aria-hidden="true" />
@@ -118,12 +122,41 @@ export default function DashboardPage(): JSX.Element {
     </section>
   }
 
-  return <section className="dashboard-screen dashboard-progress">
+  const totalCourses = catalog?.courses.filter((course) => course.isActive).length || 20
+  const completedCourses = progress.filter((item) => item.status === 'completed').length
+  const inProgressCourses = progress.filter((item) => item.status === 'in_progress').length
+  const completionPercent = totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0
+  const orbitHours = progress.reduce((total, item) => total + (item.course?.durationHours || 0), 0)
+  const resumeCourse = progress.find((item) => item.status === 'in_progress') || progress.find((item) => item.status === 'not_started')
+  const assessment = (() => { try { return JSON.parse(window.localStorage.getItem(ASSESSMENT_STORAGE_KEY) || '{}') as { level?: string } } catch { return {} } })()
+  const level = assessment.level || 'intermedio'
+  const displayLevel = level.charAt(0).toUpperCase() + level.slice(1)
+  return <section className="dashboard-screen dashboard-personalized">
     <canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" />
-    <div className="dashboard-content">
+    <div className="dashboard-personalized-content">
       <Navbar />
-      <header className="dashboard-heading"><div><p className="dashboard-eyebrow">Tu universo · en marcha</p><h1>Hola, {user?.username?.trim().split(/\s+/)[0] || 'explorador'}</h1></div></header>
-      <div className="dashboard-grid"><section className="dashboard-map dashboard-panel"><p className="dashboard-label">Mapa general</p><div className="progress-ring" style={{ '--progress': '122deg' } as React.CSSProperties}><div><strong>34%</strong><span>Conquistado</span></div></div><div className="dashboard-map-footer"><span>Rutas activas</span><span>{paths.length} en órbita</span></div><Link to="/starmap" className="mt-4 inline-block text-sm font-semibold text-brand-lime hover:underline">Explorar galaxia →</Link></section><aside className="dashboard-side"><Metric label="Cursos cerrados" value="12" suffix="cursos" /><Metric label="Horas en órbita" value="148" suffix="hrs" /><Metric label="Racha" value="23" suffix="días" /><section className="streak-card dashboard-panel"><p className="dashboard-label green">Racha · 23 días</p><div className="streak-grid">{streak.map((active, index) => <span className={active ? index > 20 ? 'active bright' : 'active' : ''} key={index} />)}</div><p className="streak-message">Una lección hoy mantiene la señal viva.</p></section></aside></div>
+      <header className="personalized-heading">
+        <div>
+          <p className="dashboard-eyebrow">Tu universo</p>
+          <h1>Hola, {user?.username?.trim().split(/\s+/)[0] || 'explorador'}</h1>
+        </div>
+        <div className="personalized-level">Nivel · {displayLevel} <span>{user?.username?.charAt(0).toUpperCase() || 'E'}</span></div>
+      </header>
+      <div className="personalized-grid">
+        <section className="personalized-map dashboard-panel">
+          <p className="dashboard-label">Mapa general</p>
+          <div className="personalized-ring"><div><strong>{completionPercent}%</strong><span>Conquistado</span></div></div>
+          <div className="personalized-map-footer"><span>{completedCourses} estrellas vivas</span><span>{inProgressCourses} en órbita</span><span>{Math.max(totalCourses - progress.length, 0)} sin explorar</span></div>
+        </section>
+        <aside className="personalized-side">
+          <Metric label="Cursos cerrados" value={String(completedCourses)} suffix={`/ ${totalCourses}`} />
+          <Metric label="Horas en órbita" value={String(orbitHours)} suffix="hrs" />
+          <Metric label="Racha" value="23" suffix="días" />
+                    <section className="streak-card dashboard-panel"><p className="dashboard-label green">Racha · 23 días</p><div className="streak-grid">{streak.map((active, index) => <span className={active ? index > 20 ? 'active bright' : 'active' : ''} key={index} />)}</div><p className="streak-message">Una lección hoy mantiene la señal viva.</p></section>
+
+        </aside>
+      </div>
+      <Link to="/starmap" state={{ fromAssessment: true, ...(resumeCourse?.courseId ? { resumeCourseId: resumeCourse.courseId } : {}) }} className="personalized-universe-link">Continuar misión <ArrowRight size={16} /></Link>
     </div>
   </section>
 }
