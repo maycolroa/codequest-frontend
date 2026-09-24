@@ -66,13 +66,11 @@ const WORLD_SCALE = 3
 const CAMERA_HOME = new THREE.Vector3(0, 45, 130)
 const STAR_COUNT = 2500
 const SHOOTING_STAR_COUNT = 4
-const LEVEL_RADIUS: Record<CourseLevel, number> = { beginner: 0.3, intermediate: 0.5, advanced: 0.7 }
+const LEVEL_RADIUS: Record<CourseLevel, number> = { beginner: 1.15, intermediate: 1.55, advanced: 2.0 }
 const INACTIVE_OPACITY = 0.35
-const ACTIVE_EMISSIVE = 0.6
+const ACTIVE_EMISSIVE = 0.5
 const INACTIVE_EMISSIVE = 0.3
-// Tono de las esferas: el color de la galaxia mezclado hacia gris oscuro, como estrellas lejanas y no neón
-const STAR_TONE_GRAY = new THREE.Color('#262626')
-const STAR_TONE_MIX = 0.4
+const PLANET_COLORS = ['#35d07f', '#ef5350', '#ff9f43', '#4d9fff', '#a66cff', '#22d3c5', '#f4d35e', '#f472b6']
 // Distancia al centro de la galaxia para cursos sin coordenadas
 const FALLBACK_MIN_DISTANCE = 4
 const FALLBACK_MAX_DISTANCE = 12
@@ -104,6 +102,7 @@ const NEBULA_DIMMED_OPACITY = 0.12
 const NEBULA_HIT_FACTOR = 0.3
 const GALAXY_FOCUS_MIN_DISTANCE = 30
 const GALAXY_FOCUS_FACTOR = 1.1
+const GALAXY_SPREAD = 2.2
 
 const nebulaVertexShader = `
   varying vec2 vUv;
@@ -213,14 +212,78 @@ function hashString(value: string, seed: number): number {
   return (hash >>> 0) / 0xffffffff
 }
 
+function makePlanetTexture(color: THREE.Color, seed: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 64
+  const context = canvas.getContext('2d')
+  if (!context) return new THREE.CanvasTexture(canvas)
+  const base = color.getStyle()
+  const dark = color.clone().offsetHSL(0, -0.12, -0.2).getStyle()
+  const light = color.clone().offsetHSL(0, -0.05, 0.2).getStyle()
+  context.fillStyle = base
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  const pattern = seed % 4
+  if (pattern === 0) {
+    for (let y = 0; y < canvas.height; y += 9 + (seed % 4)) {
+      context.fillStyle = y % 14 < 7 ? light : dark
+      context.globalAlpha = 1
+      context.fillRect(0, y, canvas.width, 6 + (seed % 4))
+    }
+  } else if (pattern === 1) {
+    context.globalAlpha = 1
+    for (let index = 0; index < 14; index += 1) {
+      context.fillStyle = index % 2 ? light : dark
+      context.beginPath()
+      context.ellipse((seed * 17 + index * 31) % 128, (seed * 11 + index * 19) % 64, 11 + (index % 4) * 4, 5 + (index % 3) * 3, index, 0, Math.PI * 2)
+      context.fill()
+    }
+  } else if (pattern === 2) {
+    context.globalAlpha = 1
+    for (let index = 0; index < 9; index += 1) {
+      context.fillStyle = index % 2 ? light : dark
+      context.beginPath()
+      context.arc((seed * 23 + index * 37) % 128, (seed * 7 + index * 13) % 64, 7 + (index % 4) * 3, 0, Math.PI * 2)
+      context.fill()
+    }
+  } else {
+    context.globalAlpha = 0.95
+    for (let index = 0; index < 80; index += 1) {
+      context.fillStyle = index % 3 ? light : dark
+      context.fillRect((seed * 13 + index * 29) % 128, (seed * 5 + index * 17) % 64, 3 + (index % 4), 2 + (index % 3))
+    }
+  }
+  context.globalAlpha = 1
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.anisotropy = 4
+  texture.needsUpdate = true
+  return texture
+}
+
+function resolveGalaxyCenter(galaxy: Galaxy): THREE.Vector3 {
+  return new THREE.Vector3(galaxy.center.x * GALAXY_SPREAD, galaxy.center.y * GALAXY_SPREAD, galaxy.center.z * GALAXY_SPREAD)
+}
+
 function resolvePosition(course: GalaxyCourse, galaxyByKey: Map<string, Galaxy>): THREE.Vector3 {
   const { positionX: x, positionY: y, positionZ: z } = course
-  if (x != null && y != null && z != null) return new THREE.Vector3(x, y, z)
-  const center = galaxyByKey.get(course.galaxies[0])?.center ?? { x: 0, y: 0, z: 0 }
+  const galaxy = galaxyByKey.get(course.galaxies[0])
+  const center = galaxy?.center ?? { x: 0, y: 0, z: 0 }
+  const worldCenter = galaxy ? resolveGalaxyCenter(galaxy) : new THREE.Vector3()
+  if (x != null && y != null && z != null) {
+    const spread = 1.8
+    return new THREE.Vector3(
+      worldCenter.x + (x - center.x) * spread,
+      worldCenter.y + (y - center.y) * spread,
+      worldCenter.z + (z - center.z) * spread,
+    )
+  }
   const theta = hashString(course.id, 1) * Math.PI * 2
   const phi = Math.acos(hashString(course.id, 2) * 2 - 1)
   const distance = FALLBACK_MIN_DISTANCE + hashString(course.id, 3) * (FALLBACK_MAX_DISTANCE - FALLBACK_MIN_DISTANCE)
-  return new THREE.Vector3(center.x, center.y, center.z).add(new THREE.Vector3().setFromSphericalCoords(distance, phi, theta))
+  return worldCenter.clone().add(new THREE.Vector3().setFromSphericalCoords(distance, phi, theta))
 }
 
 function makeNebulaTexture(): THREE.CanvasTexture {
@@ -265,6 +328,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
   const [isSupported] = useState(detectWebGL)
   const contextRef = useRef<SceneContext | null>(null)
   const nodesRef = useRef<Map<string, CourseNode>>(new Map())
+  const shipRef = useRef<THREE.Object3D | null>(null)
   const nebulaeRef = useRef<Map<string, NebulaNode>>(new Map()) // por galaxyKey
   const flightRef = useRef<CameraFlight | null>(null)
   // Curso a enfocar en cuanto exista su nodo (p. ej. tras limpiar filtros)
@@ -320,8 +384,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     const nebula = nebulaeRef.current.get(key)
     if (!context || !nebula) return
     const { camera, controls } = context
-    const { x, y, z } = nebula.galaxy.center
-    const target = new THREE.Vector3(x, y, z)
+    const target = resolveGalaxyCenter(nebula.galaxy)
     const direction = camera.position.clone().sub(controls.target).normalize()
     const distance = Math.max(GALAXY_FOCUS_MIN_DISTANCE, nebula.baseSize * GALAXY_FOCUS_FACTOR)
     startFlight({ target, position: target.clone().addScaledVector(direction, distance) })
@@ -724,6 +787,17 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       hoverLines?.update(delta, elapsed)
       selectedLines?.update(delta, elapsed)
 
+      const ship = shipRef.current
+      const selectedNode = selectedIdRef.current ? nodesRef.current.get(selectedIdRef.current) : undefined
+      if (ship && selectedNode) {
+        const target = selectedNode.group.position.clone()
+        target.y += 4.2
+        ship.position.lerp(target, 0.07)
+        ship.rotation.y += 0.012
+        ship.rotation.z = Math.sin(elapsed * 1.8) * 0.045
+        ship.position.y += Math.sin(elapsed * 2.2) * 0.018
+      }
+
       const flight = flightRef.current
       if (flight) {
         controls.target.lerp(flight.target, FLIGHT_LERP)
@@ -769,19 +843,21 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     const nodesGroup = new THREE.Group()
     const geometries: THREE.BufferGeometry[] = []
     const materials: THREE.Material[] = []
+    const textures: THREE.Texture[] = []
     const nodes = new Map<string, CourseNode>()
     // Distancia máxima de los cursos de cada galaxia principal a su centro
     const galaxyExtent = new Map<string, number>()
 
-    courses.forEach((course) => {
+    courses.forEach((course, courseIndex) => {
       const baseRadius = LEVEL_RADIUS[course.level]
-      const color = new THREE.Color(course.galaxyColor).lerp(STAR_TONE_GRAY, STAR_TONE_MIX)
+      const color = new THREE.Color(PLANET_COLORS[courseIndex % PLANET_COLORS.length])
+      const planetTexture = makePlanetTexture(color, courseIndex + 1)
+      textures.push(planetTexture)
       const nodeGroup = new THREE.Group()
       nodeGroup.position.copy(resolvePosition(course, galaxyByKey))
       const primaryGalaxy = galaxyByKey.get(course.galaxies[0])
       if (primaryGalaxy) {
-        const { x, y, z } = primaryGalaxy.center
-        const distance = nodeGroup.position.distanceTo(new THREE.Vector3(x, y, z))
+        const distance = nodeGroup.position.distanceTo(resolveGalaxyCenter(primaryGalaxy))
         galaxyExtent.set(primaryGalaxy.key, Math.max(galaxyExtent.get(primaryGalaxy.key) ?? 0, distance))
       }
 
@@ -789,12 +865,17 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       const baseEmissive = course.isActive ? ACTIVE_EMISSIVE : INACTIVE_EMISSIVE
       const coreGeo = new THREE.SphereGeometry(baseRadius, 32, 32)
       // Siempre transparente para poder interpolar la opacidad al resaltar
-      const coreMat = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
+      const coreMat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#ffffff'),
+        map: planetTexture,
+        bumpMap: planetTexture,
+        bumpScale: 0.68,
+        emissive: color.clone().multiplyScalar(0.34),
         emissiveIntensity: baseEmissive,
-        roughness: 0.15,
-        metalness: 0.7,
+        roughness: 0.38 + hashString(course.id, 6) * 0.3,
+        metalness: 0.04 + hashString(course.id, 7) * 0.12,
+        clearcoat: 0.28 + hashString(course.id, 8) * 0.38,
+        clearcoatRoughness: 0.16 + hashString(course.id, 9) * 0.3,
         transparent: true,
         opacity: baseOpacity,
       })
@@ -820,14 +901,13 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
 
       // Anillo con el color de la segunda galaxia
       let ring: THREE.Mesh | null = null
-      const secondGalaxy = course.galaxies[1] ? galaxyByKey.get(course.galaxies[1]) : undefined
-      if (secondGalaxy) {
+      {
         const ringGeo = new THREE.RingGeometry(baseRadius * 1.9, baseRadius * 2.05, 64)
         const ringMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(secondGalaxy.color).lerp(STAR_TONE_GRAY, STAR_TONE_MIX),
+          color: color.clone().offsetHSL(0.08 + hashString(course.id, 10) * 0.12, 0.02, 0.04),
           side: THREE.DoubleSide,
           transparent: true,
-          opacity: course.isActive ? RING_OPACITY : INACTIVE_OPACITY,
+          opacity: course.isActive ? RING_OPACITY * 0.72 : INACTIVE_OPACITY,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         })
@@ -855,7 +935,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
         depthWrite: false,
       })
       const nebula = new THREE.Sprite(nebulaMat)
-      nebula.position.set(galaxy.center.x, galaxy.center.y, galaxy.center.z)
+      nebula.position.copy(resolveGalaxyCenter(galaxy))
       const size = Math.max(NEBULA_MIN_SIZE, (galaxyExtent.get(galaxy.key) ?? 0) * NEBULA_SIZE_FACTOR)
       nebula.scale.set(size, size, 1)
       nodesGroup.add(nebula)
@@ -864,6 +944,23 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     })
 
     context.scene.add(nodesGroup)
+    let shipCancelled = false
+    new THREE.TextureLoader().load('/assets/devi-laptop.png', (texture) => {
+      if (shipCancelled) {
+        texture.dispose()
+        return
+      }
+      texture.colorSpace = THREE.SRGBColorSpace
+      const devi = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false }))
+      devi.scale.set(2.4, 2.4, 1)
+      devi.position.y += 4.2
+      const deviLight = new THREE.PointLight(0xa855f7, 2.8, 12)
+      deviLight.position.set(0, -1.4, 0)
+      devi.add(deviLight)
+      devi.renderOrder = 20
+      shipRef.current = devi
+      context.scene.add(devi)
+    })
     nodesRef.current = nodes
     nebulaeRef.current = nebulae
     context.refreshSelectedLines()
@@ -874,6 +971,11 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     }
 
     return () => {
+      shipCancelled = true
+      if (shipRef.current) {
+        context.scene.remove(shipRef.current)
+        shipRef.current = null
+      }
       // El curso en hover puede desaparecer con el rebuild: se limpian sus líneas
       context.setHovered(null)
       context.clearSelectedLines()
@@ -883,6 +985,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       nodes.forEach(({ light }) => light?.dispose())
       geometries.forEach((geometry) => geometry.dispose())
       materials.forEach((material) => material.dispose())
+      textures.forEach((texture) => texture.dispose())
       nebulaTexture.dispose()
     }
   }, [courses, flyToNode, galaxies])

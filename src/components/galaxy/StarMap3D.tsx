@@ -4,8 +4,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import CoursePanel from '@/components/galaxy/CoursePanel'
 import CourseTooltip from '@/components/galaxy/CourseTooltip'
 import { useCourseGalaxy } from '@/hooks/useCourseGalaxy'
+import { Link, useLocation } from 'react-router-dom'
 import { useGalaxyScene } from '@/hooks/useGalaxyScene'
-import { useAuthStore } from '@/stores/auth.store'
 import type { CourseLevel } from '@/types'
 import { COURSE_LEVEL_LABELS } from '@/utils/format'
 
@@ -22,11 +22,14 @@ export default function StarMap3D(): JSX.Element {
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
+  const [panelDismissed, setPanelDismissed] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all')
   const [focusedGalaxyKey, setFocusedGalaxyKey] = useState<string | null>(null)
-  const loginWithDiscord = useAuthStore((s) => s.loginWithDiscord)
-  const { galaxies, courses, isLoading, isDemo } = useCourseGalaxy()
+  const location = useLocation()
+  const personalized = location.state?.fromAssessment === true
+  const resumeCourseId = location.state?.resumeCourseId as string | undefined
+  const { galaxies, courses, isLoading } = useCourseGalaxy(personalized)
 
   // Índices sobre todos los cursos recibidos, no solo los filtrados
   const courseBySlug = useMemo(() => new Map(courses.map((course) => [course.slug, course])), [courses])
@@ -46,6 +49,33 @@ export default function StarMap3D(): JSX.Element {
   }, [courses, galaxyByKey, levelFilter, searchTerm])
 
   const { isSupported, resetCamera, focusCourse } = useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses: filteredCourses, selectedId: selectedSlug, onHover: setHoveredSlug, onSelect: setSelectedSlug, focusedGalaxyKey: activeFocusKey, onFocusGalaxy: setFocusedGalaxyKey })
+
+  useEffect(() => {
+    if (!personalized || selectedSlug || panelDismissed || filteredCourses.length === 0) return
+    const course = resumeCourseId
+      ? filteredCourses.find((item) => item.id === resumeCourseId) ?? filteredCourses[0]
+      : filteredCourses[0]
+    setFocusedGalaxyKey(course.galaxies[0] ?? null)
+    setSelectedSlug(course.slug)
+    focusCourse(course.slug)
+  }, [filteredCourses, focusCourse, panelDismissed, personalized, resumeCourseId, selectedSlug])
+
+  useEffect(() => {
+    if (!personalized || selectedSlug || focusedGalaxyKey || panelDismissed) return
+    const firstCourse = filteredCourses[0]
+    const firstGalaxy = firstCourse?.galaxies[0]
+    if (firstGalaxy) setFocusedGalaxyKey(firstGalaxy)
+    if (firstCourse) {
+      setSelectedSlug(firstCourse.slug)
+      focusCourse(firstCourse.slug)
+    }
+  }, [filteredCourses, focusCourse, focusedGalaxyKey, panelDismissed, personalized, selectedSlug])
+
+  useEffect(() => {
+    if (!personalized || !selectedSlug || !activeFocusKey) return
+    focusCourse(selectedSlug)
+  }, [activeFocusKey, focusCourse, personalized, selectedSlug])
+
   const hoveredCourse = hoveredSlug ? courseBySlug.get(hoveredSlug) ?? null : null
   const selectedCourse = selectedSlug ? courseBySlug.get(selectedSlug) ?? null : null
 
@@ -53,6 +83,7 @@ export default function StarMap3D(): JSX.Element {
   const handleNavigate = useCallback((slug: string) => {
     setSearchTerm('')
     setLevelFilter('all')
+    setPanelDismissed(false)
     setFocusedGalaxyKey(null)
     setSelectedSlug(slug)
     focusCourse(slug)
@@ -101,18 +132,17 @@ export default function StarMap3D(): JSX.Element {
             </div>
             <h1 className="text-sm font-bold tracking-wide text-white sm:text-base">Code Quest · Galaxia de cursos</h1>
           </div>
-          <button type="button" onClick={handleResetCamera} className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-900/70 px-3.5 py-2.5 font-mono text-xs text-cyan-300 backdrop-blur-md transition-colors hover:bg-slate-800 hover:text-cyan-200" title="Restablecer vista general">
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Vista general</span>
-          </button>
-        </header>
-
-        {isDemo && (
-          <div className="pointer-events-auto flex flex-wrap items-center gap-3 self-start rounded-2xl border border-amber-400/30 bg-amber-950/60 px-4 py-2.5 text-sm text-amber-100 shadow-xl backdrop-blur-md">
-            <span>Estás viendo una galaxia demo — Inicia sesión con Discord</span>
-            <button type="button" onClick={loginWithDiscord} className="rounded-lg border border-brand-purple px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-purple/20">Iniciar sesión con Discord</button>
+          <div className="pointer-events-auto flex items-center gap-2">
+            <button type="button" onClick={handleResetCamera} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-900/70 px-3.5 py-2.5 font-mono text-xs text-cyan-300 backdrop-blur-md transition-colors hover:bg-slate-800 hover:text-cyan-200" title="Restablecer vista general">
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Vista general</span>
+            </button>
+            {personalized && <Link to="/dashboard" className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-900/70 px-3.5 py-2.5 font-mono text-xs text-lime-300 backdrop-blur-md transition-colors hover:bg-slate-800 hover:text-lime-200" title="Volver a estación espacial">
+              <span aria-hidden="true">↩</span>
+              <span className="hidden sm:inline">Volver a estación espacial</span>
+            </Link>}
           </div>
-        )}
+        </header>
 
         <div className="pointer-events-auto flex flex-wrap items-center gap-2 self-start">
           <label className="flex items-center rounded-xl border border-white/10 bg-slate-900/80 px-3 py-1.5 shadow-lg backdrop-blur-md">
@@ -157,7 +187,7 @@ export default function StarMap3D(): JSX.Element {
         </div>
       )}
 
-      {selectedCourse && <CoursePanel course={selectedCourse} galaxyByKey={galaxyByKey} courseBySlug={courseBySlug} onClose={() => setSelectedSlug(null)} onNavigate={handleNavigate} />}
+      {selectedCourse && <CoursePanel course={selectedCourse} galaxyByKey={galaxyByKey} courseBySlug={courseBySlug} onClose={() => { setSelectedSlug(null); setPanelDismissed(true) }} onNavigate={handleNavigate} />}
 
       {isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center"><LoadingSpinner /></div>}
     </div>

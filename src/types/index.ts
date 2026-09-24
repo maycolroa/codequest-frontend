@@ -36,6 +36,16 @@ export interface CourseGalaxyResponse {
   courses: GalaxyCourse[]
 }
 
+export interface UserCourseProgress {
+  id: string
+  courseId: string
+  status: 'not_started' | 'in_progress' | 'completed'
+  progressPercent: number
+  startedAt: string | null
+  completedAt: string | null
+  course?: { id: string; title: string; durationHours: number | null }
+}
+
 import type { ReactElement } from 'react'
 
 /* eslint-disable @typescript-eslint/no-namespace, @typescript-eslint/no-empty-object-type */
