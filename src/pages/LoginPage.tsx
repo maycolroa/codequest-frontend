@@ -58,7 +58,7 @@ export default function LoginPage(): JSX.Element {
     <canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" />
     <div className="relative z-10 w-full max-w-lg rounded-2xl border border-brand-purple/70 bg-brand-dark/95 p-7 shadow-2xl shadow-brand-purple/20 backdrop-blur-md sm:p-10">
       <div className="mb-8 border-b border-white/10 pb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-lime">Acceso al universo</p>
+        <p className="text-xs font-semibold tracking-[0.12em] text-brand-lime">Acceso al universo</p>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{registerMode ? 'Crea tu cuenta' : 'Inicia sesión'}</h1>
         <p className="mt-2 text-sm text-slate-400">{registerMode ? 'Configura tu perfil para comenzar.' : 'Accede a tu espacio de aprendizaje.'}</p>
       </div>
@@ -69,7 +69,7 @@ export default function LoginPage(): JSX.Element {
         {error && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</p>}
         <button disabled={loading} type="submit" className="w-full rounded-lg bg-brand-lime px-5 py-3.5 font-bold text-brand-darker shadow-lg shadow-brand-lime/10 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60">{loading ? 'Procesando...' : registerMode ? 'Crear cuenta' : 'Entrar con correo'}</button>
       </form>
-      <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-widest text-slate-500"><span className="h-px flex-1 bg-white/10" /> o <span className="h-px flex-1 bg-white/10" /></div>
+      <div className="my-6 flex items-center gap-3 text-xs tracking-widest text-slate-500"><span className="h-px flex-1 bg-white/10" /> o <span className="h-px flex-1 bg-white/10" /></div>
       <button type="button" onClick={handleDiscord} className="discord-auth-button w-full" aria-label="Continuar con Discord">
         <svg className="discord-auth-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M19.54 5.04A16.9 16.9 0 0 0 15.4 3.76l-.5 1.02a15.7 15.7 0 0 0-5.8 0l-.5-1.02a16.9 16.9 0 0 0-4.14 1.28C1.84 8.98 1.13 12.82 1.48 16.6a16.7 16.7 0 0 0 5.1 2.58l1.23-1.63a10.1 10.1 0 0 1-1.94-.93l.47-.36c3.74 1.75 7.8 1.75 11.5 0l.48.36c-.62.36-1.27.67-1.95.93l1.23 1.63a16.7 16.7 0 0 0 5.1-2.58c.42-4.38-.72-8.18-3.16-11.56ZM8.5 14.6c-1.12 0-2.04-1.03-2.04-2.3S7.36 10 8.5 10s2.06 1.03 2.04 2.3c0 1.27-.91 2.3-2.04 2.3Zm7 0c-1.12 0-2.04-1.03-2.04-2.3S14.36 10 15.5 10s2.06 1.03 2.04 2.3c0 1.27-.91 2.3-2.04 2.3Z" />
