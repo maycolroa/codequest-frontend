@@ -40,8 +40,10 @@ codequest-frontend/
 │   │                            # useCourseGalaxy (datos), useGalaxyScene (Three.js)
 │   ├── lib/
 │   │   └── galaxy/                # Módulos de la galaxia 3D que usa useGalaxyScene
+│   │       ├── deviceTier.ts        # Gama del dispositivo y resolución de las superficies
 │   │       ├── galaxyHighlight.ts   # Funciones puras de resaltado (sin three ni react)
 │   │       ├── hash.ts              # hashString (FNV-1a) para valores deterministas por id
+│   │       ├── idleScheduler.ts     # scheduleIdle: requestIdleCallback o setTimeout
 │   │       ├── planetVisuals.ts     # Texturas procedurales, aura y geometrías compartidas (Three.js)
 │   │       └── relationLines.ts     # Líneas de relaciones con Line2 (Three.js)
 │   ├── pages/                   # Componentes de página (uno por ruta)
@@ -241,10 +243,33 @@ no provoque renders de React en cada frame.
     `ai-ml` circuit, `frontend` ocean, `backend` rock, `fundamentals` sand,
     `mobile` metal, `devops` volcanic, `dotnet-java` crystal. Cualquier otra
     key usa `noise`.
-  - Las texturas son de 512×256 en escala de grises, equirectangulares,
-    continuas en horizontal y deterministas (`mulberry32` con semilla
+  - Las texturas son en escala de grises, equirectangulares, continuas en
+    horizontal y deterministas (`mulberry32` con semilla
     `hashString(pattern, 0)`). El material las tiñe con `map` +
     `emissiveMap`; `PATTERN_SURFACE` fija `roughness` y `metalness`.
+  - Resolución (`deviceTier.ts`): 256×128 si `deviceMemory <= 4` o
+    `hardwareConcurrency <= 4`, y 512×256 en el resto o si faltan las dos
+    APIs. Se decide una vez por `createPlanetAssets`. Los painters escalan sus
+    constantes en píxeles por `width / 512`, así que a 512×256 dan los mismos
+    píxeles que en SPEC 04.
+  - Carga diferida (SPEC 05):
+    - `surfaceTexture(pattern)` devuelve al instante una `CanvasTexture` con
+      un `TextureSource` placeholder de 1×1 gris 0.5, compartido por todos
+      los patrones pendientes;
+    - la cola pinta un patrón cada vez en callbacks de `scheduleIdle`, con
+      hasta 40 ms por callback y al menos un paso. Los painters son
+      generadores: un paso es una fila de `fillGray` o una pista o un chip de
+      `circuit`;
+    - al terminar, el original y su clon espejado reciben un `TextureSource`
+      nuevo con `needsUpdate`. Antes se llama a `texture.dispose()`: three
+      r186 no incluye el `Source` en la clave de la textura GL, y sin
+      `dispose()` seguiría usando la del placeholder. El material no cambia,
+      así que no se enlaza ningún programa nuevo;
+    - `prioritizeSurfaces(patterns)` pone delante los pendientes listados.
+      `useGalaxyScene` lo llama al final de cada rebuild de nodos con los
+      patrones ordenados por su distancia mínima a `camera.position`;
+    - three solo sube a la GPU las texturas de planetas visibles, así que el
+      orden de subida no es el de generación.
   - `planetOrientation(id)` da el giro y la inclinación inicial del core, y
     `orbitOrientation(id)` la inclinación y el azimut de la órbita (orden
     `YXZ`).
@@ -260,9 +285,10 @@ no provoque renders de React en cada frame.
     tumbado con π/2 e inclinado con `decorRingOrientation(id)` (orden `YXZ`).
   - Variación de superficie (`surfaceVariant`):
     - espejo en la mitad de los planetas con un clon de la textura
-      (`repeat.x = −1`). Three.js comparte la `WebGLTexture` entre clones
-      con la misma imagen y parámetros, así que no suma texturas. Los clones
-      se liberan en el rebuild de nodos;
+      (`repeat.x = −1`), uno por patrón (`mirroredSurfaceTexture`). Three.js
+      comparte la `WebGLTexture` entre clones con la misma imagen y
+      parámetros, así que no suma texturas. Los clones viven en
+      `PlanetAssets` y se liberan con la escena;
     - contraste 0.85–1.15 con `applySurfaceContrast`: `onBeforeCompile`
       reemplaza los chunks `map_fragment` y `emissivemap_fragment` y añade el
       uniform `uSurfaceContrast`. `customProgramCacheKey` fijo, así que todos
@@ -275,9 +301,10 @@ no provoque renders de React en cada frame.
   - Recursos compartidos: `createPlanetAssets()` se crea con la escena y se
     guarda en `SceneContext.planetAssets`. Geometrías de core, anillos y órbita
     por nivel, texturas de superficie bajo demanda y cacheadas por patrón (8
-    como máximo), una textura de aura y una de atmósfera. Solo `planetAssets.dispose()`, en el
-    cleanup de la escena, las libera; el rebuild de nodos libera solo los
-    materiales por curso.
+    como máximo) con sus clones espejados, una textura de aura y una de
+    atmósfera. Solo `planetAssets.dispose()`, en el cleanup de la escena, las
+    libera y cancela la generación pendiente; el rebuild de nodos libera solo
+    los materiales por curso.
 - **Relaciones** (`relationLines.ts`)
   - Cada juego de líneas es un `RelationLines` anclado en el curso origen.
   - Prerequisitos: rojos, con partículas en un solo `THREE.Points`.

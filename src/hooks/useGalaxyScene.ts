@@ -13,14 +13,13 @@ import {
   decorRingOrientation,
   emissiveForGalaxy,
   LEVEL_RADIUS,
-  mirrorSurfaceTexture,
   orbitOrientation,
   PATTERN_SURFACE,
   patternForGalaxy,
   planetOrientation,
   surfaceVariant,
 } from '@/lib/galaxy/planetVisuals'
-import type { PlanetAssets } from '@/lib/galaxy/planetVisuals'
+import type { PlanetAssets, PlanetPattern } from '@/lib/galaxy/planetVisuals'
 import { createRelationLines, SELECTED_LINE_INTENSITY } from '@/lib/galaxy/relationLines'
 import type { RelationLines } from '@/lib/galaxy/relationLines'
 
@@ -850,11 +849,11 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     const galaxyByKey = new Map(galaxies.map((galaxy) => [galaxy.key, galaxy]))
     const nodesGroup = new THREE.Group()
     const materials: THREE.Material[] = []
-    // Clones espejados de las texturas de superficie: son del rebuild, no de planetAssets
-    const surfaceClones: THREE.Texture[] = []
     const nodes = new Map<string, CourseNode>()
     // Distancia máxima de los cursos de cada galaxia principal a su centro
     const galaxyExtent = new Map<string, number>()
+    // Distancia mínima de cada patrón a la cámara, para generar antes las texturas más cercanas
+    const patternDistance = new Map<PlanetPattern, number>()
 
     courses.forEach((course) => {
       const baseRadius = LEVEL_RADIUS[course.level]
@@ -873,12 +872,11 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       const baseEmissive = (course.isActive ? ACTIVE_EMISSIVE : INACTIVE_EMISSIVE) * emissiveForGalaxy(course.galaxies[0])
       // Textura en gris compartida por patrón: el color de la galaxia la tiñe vía color y emissive
       const pattern = patternForGalaxy(course.galaxies[0])
+      const cameraDistance = nodeGroup.position.distanceTo(context.camera.position)
+      patternDistance.set(pattern, Math.min(patternDistance.get(pattern) ?? Infinity, cameraDistance))
       const variant = surfaceVariant(course.id)
-      let surface = planetAssets.surfaceTexture(pattern)
-      if (variant.mirrored) {
-        surface = mirrorSurfaceTexture(surface)
-        surfaceClones.push(surface)
-      }
+      // El clon espejado también es compartido por patrón y vive en planetAssets
+      const surface = variant.mirrored ? planetAssets.mirroredSurfaceTexture(pattern) : planetAssets.surfaceTexture(pattern)
       // Clon del color mezclado: la variación por curso solo afecta al core, no a las demás capas
       const coreColor = color.clone().offsetHSL(
         0,
@@ -1038,6 +1036,8 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     })
     nodesRef.current = nodes
     nebulaeRef.current = nebulae
+    // Con la cámara de este momento: restaurada o en CAMERA_HOME en el primer rebuild, la actual al filtrar
+    planetAssets.prioritizeSurfaces([...patternDistance].sort(([, a], [, b]) => a - b).map(([pattern]) => pattern))
     context.refreshSelectedLines()
     const pendingNode = pendingFocusRef.current ? nodes.get(pendingFocusRef.current) : undefined
     if (pendingNode) {
@@ -1060,7 +1060,6 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       nodes.forEach(({ light }) => light?.dispose())
       // Las geometrías y texturas de planetAssets son compartidas: se liberan con la escena, no aquí
       materials.forEach((material) => material.dispose())
-      surfaceClones.forEach((texture) => texture.dispose())
       nebulaTexture.dispose()
     }
   }, [courses, flyToNode, galaxies])

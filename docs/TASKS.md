@@ -126,3 +126,9 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 - [x] Anillo decorativo fino en todos los planetas
 - [x] Variación por curso: tono del aura, superficie espejada, contraste y
       saturación/luminosidad del core
+- [x] Carga diferida de las texturas de superficie: placeholder 1×1 y
+      generación en tiempo idle por chunks de 40 ms (SPEC 05)
+- [x] Fallback con `setTimeout` cuando no existe `requestIdleCallback`
+- [x] Resolución adaptativa de las superficies (256×128 en gama baja)
+- [x] Prioridad de generación por distancia a la cámara
+- [x] Clon espejado compartido por patrón en `PlanetAssets`

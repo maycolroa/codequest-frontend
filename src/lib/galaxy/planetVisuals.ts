@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import type { CourseLevel } from '@/types'
 import { hashString } from '@/lib/galaxy/hash'
+import { surfaceSize, type SurfaceSize } from '@/lib/galaxy/deviceTier'
+import { scheduleIdle, type IdleBudget } from '@/lib/galaxy/idleScheduler'
 
 export type PlanetPattern = 'circuit' | 'ocean' | 'rock' | 'sand' | 'metal' | 'volcanic' | 'crystal' | 'noise'
 
@@ -46,9 +48,13 @@ export const LEVEL_RADIUS: Record<CourseLevel, number> = { beginner: 0.3, interm
 
 const LEVELS = Object.keys(LEVEL_RADIUS) as CourseLevel[]
 
-// Textura de superficie equirectangular: u = longitud, v = latitud
-const SURFACE_WIDTH = 512
-const SURFACE_HEIGHT = 256
+// Textura de superficie equirectangular: u = longitud, v = latitud. Las constantes en píxeles de los
+// painters están pensadas para este ancho y se escalan por width / SURFACE_REFERENCE_WIDTH.
+const SURFACE_REFERENCE_WIDTH = 512
+// Trabajo máximo por callback idle al generar superficies
+const SURFACE_CHUNK_BUDGET_MS = 40
+// Brillo del placeholder de 1×1, cerca del brillo medio de las texturas reales
+const PLACEHOLDER_GRAY = 0.5
 const AURA_TEXTURE_SIZE = 128
 const ATMOSPHERE_TEXTURE_SIZE = 128
 const DEFAULT_GALAXY_EMISSIVE = 1
@@ -74,14 +80,16 @@ const SURFACE_CONTRAST_PROGRAM_KEY = 'planet-surface-contrast'
 const ORBIT_MAX_TILT = 0.6
 
 export interface PlanetAssets {
-  surfaceTexture: (pattern: PlanetPattern) => THREE.CanvasTexture // lazy + caché
+  surfaceTexture: (pattern: PlanetPattern) => THREE.CanvasTexture // placeholder 1×1 hasta que termina su generación
+  mirroredSurfaceTexture: (pattern: PlanetPattern) => THREE.CanvasTexture // clon espejado compartido, cambia de Source con el original
+  prioritizeSurfaces: (patterns: PlanetPattern[]) => void // los pendientes listados pasan delante, en ese orden
   auraTexture: THREE.CanvasTexture
   atmosphereTexture: THREE.CanvasTexture
   coreGeometry: (level: CourseLevel) => THREE.SphereGeometry
   ringGeometry: (level: CourseLevel) => THREE.RingGeometry
   orbitGeometry: (level: CourseLevel) => THREE.BufferGeometry
   decorRingGeometry: (level: CourseLevel) => THREE.RingGeometry
-  dispose: () => void // libera todas las texturas y geometrías creadas
+  dispose: () => void // libera todas las texturas y geometrías creadas; además cancela la generación pendiente
 }
 
 // 'noise' si la key no está en GALAXY_PATTERN o es undefined
@@ -131,8 +139,8 @@ export function surfaceVariant(courseId: string): { mirrored: boolean; contrast:
 }
 
 // Clon espejado en horizontal. Three.js reutiliza la WebGLTexture del original porque comparten
-// source y parámetros (offset y repeat no cuentan). El llamador lo libera.
-export function mirrorSurfaceTexture(texture: THREE.CanvasTexture): THREE.CanvasTexture {
+// source y parámetros (offset y repeat no cuentan). PlanetAssets lo cachea por patrón y lo libera.
+function mirrorSurfaceTexture(texture: THREE.CanvasTexture): THREE.CanvasTexture {
   const mirrored = texture.clone()
   mirrored.repeat.x = -1
   mirrored.offset.x = 1
@@ -218,22 +226,34 @@ function createFbm(rand: () => number, cellsX: number, cellsY: number, octaves: 
   }
 }
 
-type SurfacePainter = (ctx: CanvasRenderingContext2D, rand: () => number) => void
+// Cada yield es un punto donde la cola puede ceder el hilo
+type SurfacePainter = (ctx: CanvasRenderingContext2D, rand: () => number, size: SurfaceSize) => Generator<void, void, void>
 
-// Escribe un campo de brillo [0, 1] en escala de grises sobre todo el canvas
-function fillGray(ctx: CanvasRenderingContext2D, brightness: (u: number, v: number) => number): void {
-  const image = ctx.createImageData(SURFACE_WIDTH, SURFACE_HEIGHT)
+// Factor de las constantes en píxeles: 1 a 512×256, 0.5 a 256×128
+function surfaceScale(size: SurfaceSize): number {
+  return size.width / SURFACE_REFERENCE_WIDTH
+}
+
+// Escribe un campo de brillo [0, 1] en escala de grises sobre todo el canvas; un paso por fila
+function* fillGray(
+  ctx: CanvasRenderingContext2D,
+  size: SurfaceSize,
+  brightness: (u: number, v: number) => number,
+): Generator<void, void, void> {
+  const { width, height } = size
+  const image = ctx.createImageData(width, height)
   const { data } = image
-  for (let y = 0; y < SURFACE_HEIGHT; y++) {
-    const v = y / SURFACE_HEIGHT
-    for (let x = 0; x < SURFACE_WIDTH; x++) {
-      const value = Math.round(THREE.MathUtils.clamp(brightness(x / SURFACE_WIDTH, v), 0, 1) * 255)
-      const i = (y * SURFACE_WIDTH + x) * 4
+  for (let y = 0; y < height; y++) {
+    const v = y / height
+    for (let x = 0; x < width; x++) {
+      const value = Math.round(THREE.MathUtils.clamp(brightness(x / width, v), 0, 1) * 255)
+      const i = (y * width + x) * 4
       data[i] = value
       data[i + 1] = value
       data[i + 2] = value
       data[i + 3] = 255
     }
+    yield
   }
   ctx.putImageData(image, 0, 0)
 }
@@ -251,24 +271,26 @@ function gray(value: number): string {
 }
 
 // Dibuja una primitiva también desplazada ±ancho para que lo que cruza el borde case al envolver la esfera
-function drawWrapped(draw: (offsetX: number) => void): void {
-  for (const offsetX of [-SURFACE_WIDTH, 0, SURFACE_WIDTH]) draw(offsetX)
+function drawWrapped(width: number, draw: (offsetX: number) => void): void {
+  for (const offsetX of [-width, 0, width]) draw(offsetX)
 }
 
 // Ruido fbm suave: fallback genérico
-const paintNoise: SurfacePainter = (ctx, rand) => {
+const paintNoise: SurfacePainter = function* (ctx, rand, size) {
   const fbm = createFbm(rand, 8, 4, 5)
-  fillGray(ctx, (u, v) => 0.25 + 0.75 * fbm(u, v))
+  yield* fillGray(ctx, size, (u, v) => 0.25 + 0.75 * fbm(u, v))
 }
 
-// Pistas ortogonales con pads y bloques tipo chip sobre una base oscura
-const paintCircuit: SurfacePainter = (ctx, rand) => {
+// Pistas ortogonales con pads y bloques tipo chip sobre una base oscura; un paso por pista y por chip
+const paintCircuit: SurfacePainter = function* (ctx, rand, size) {
   const base = createFbm(rand, 16, 8, 3)
-  fillGray(ctx, (u, v) => 0.28 + 0.1 * base(u, v))
+  yield* fillGray(ctx, size, (u, v) => 0.28 + 0.1 * base(u, v))
 
-  const cols = SURFACE_WIDTH / CIRCUIT_GRID
-  const rows = SURFACE_HEIGHT / CIRCUIT_GRID
-  const cell = (n: number) => n * CIRCUIT_GRID
+  const scale = surfaceScale(size)
+  const grid = CIRCUIT_GRID * scale
+  const cols = size.width / grid
+  const rows = size.height / grid
+  const cell = (n: number) => n * grid
   const randInt = (min: number, max: number) => min + Math.floor(rand() * (max - min + 1))
 
   ctx.lineCap = 'square'
@@ -284,19 +306,20 @@ const paintCircuit: SurfacePainter = (ctx, rand) => {
     }
     const [startX, startY] = points[0]
     const [endX, endY] = points[points.length - 1]
-    drawWrapped((dx) => {
+    drawWrapped(size.width, (dx) => {
       ctx.strokeStyle = gray(0.85)
-      ctx.lineWidth = 2
+      ctx.lineWidth = 2 * scale
       ctx.beginPath()
       points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(cell(x) + dx, cell(y)) : ctx.lineTo(cell(x) + dx, cell(y))))
       ctx.stroke()
       ctx.fillStyle = gray(1)
       for (const [x, y] of [[startX, startY], [endX, endY]]) {
         ctx.beginPath()
-        ctx.arc(cell(x) + dx, cell(y), 3, 0, TAU)
+        ctx.arc(cell(x) + dx, cell(y), 3 * scale, 0, TAU)
         ctx.fill()
       }
     })
+    yield
   }
 
   for (let c = 0; c < 10; c++) {
@@ -304,32 +327,33 @@ const paintCircuit: SurfacePainter = (ctx, rand) => {
     const h = cell(randInt(2, 3))
     const x = cell(randInt(0, cols - 1))
     const y = cell(randInt(2, rows - 5))
-    drawWrapped((dx) => {
+    drawWrapped(size.width, (dx) => {
       ctx.fillStyle = gray(0.55)
       ctx.fillRect(x + dx, y, w, h)
       ctx.strokeStyle = gray(0.95)
-      ctx.lineWidth = 1.5
+      ctx.lineWidth = 1.5 * scale
       ctx.strokeRect(x + dx, y, w, h)
       // Patas del chip en los lados largos
       ctx.strokeStyle = gray(0.8)
-      ctx.lineWidth = 1
+      ctx.lineWidth = 1 * scale
       ctx.beginPath()
-      for (let px = x + 4; px < x + w - 2; px += 6) {
+      for (let px = x + 4 * scale; px < x + w - 2 * scale; px += 6 * scale) {
         ctx.moveTo(px + dx, y)
-        ctx.lineTo(px + dx, y - 4)
+        ctx.lineTo(px + dx, y - 4 * scale)
         ctx.moveTo(px + dx, y + h)
-        ctx.lineTo(px + dx, y + h + 4)
+        ctx.lineTo(px + dx, y + h + 4 * scale)
       }
       ctx.stroke()
     })
+    yield
   }
 }
 
 // Bandas onduladas con gradiente suave hacia el ecuador
-const paintOcean: SurfacePainter = (ctx, rand) => {
+const paintOcean: SurfacePainter = function* (ctx, rand, size) {
   const warp = createFbm(rand, 4, 2, 4)
   const detail = createFbm(rand, 16, 8, 3)
-  fillGray(ctx, (u, v) => {
+  yield* fillGray(ctx, size, (u, v) => {
     const band = 0.5 + 0.5 * Math.sin(TAU * v * 7 + warp(u, v) * 5 + Math.sin(TAU * u * 2) * 0.8)
     const equator = 1 - Math.abs(2 * v - 1)
     return 0.3 + 0.45 * band + 0.15 * detail(u, v) + 0.1 * equator
@@ -337,10 +361,10 @@ const paintOcean: SurfacePainter = (ctx, rand) => {
 }
 
 // fbm de alto contraste con manchas oscuras
-const paintRock: SurfacePainter = (ctx, rand) => {
+const paintRock: SurfacePainter = function* (ctx, rand, size) {
   const fbm = createFbm(rand, 8, 4, 6)
   const spots = createFbm(rand, 5, 3, 4)
-  fillGray(ctx, (u, v) => {
+  yield* fillGray(ctx, size, (u, v) => {
     const contrast = smoothstep(fbm(u, v), 0.3, 0.7)
     const spot = smoothstep(spots(u, v), 0.58, 0.68)
     return 0.25 + 0.75 * contrast * (1 - 0.7 * spot)
@@ -348,9 +372,9 @@ const paintRock: SurfacePainter = (ctx, rand) => {
 }
 
 // Dunas diagonales asimétricas con grano fino; el coeficiente entero de u mantiene el periodo horizontal
-const paintSand: SurfacePainter = (ctx, rand) => {
+const paintSand: SurfacePainter = function* (ctx, rand, size) {
   const warp = createFbm(rand, 4, 2, 4)
-  fillGray(ctx, (u, v) => {
+  yield* fillGray(ctx, size, (u, v) => {
     const w = warp(u, v)
     const phase = 6 * u + 4 * v + w * 0.6
     const d = phase - Math.floor(phase)
@@ -360,7 +384,7 @@ const paintSand: SurfacePainter = (ctx, rand) => {
 }
 
 // Superficie lisa cepillada con franjas de reflejo brillante
-const paintMetal: SurfacePainter = (ctx, rand) => {
+const paintMetal: SurfacePainter = function* (ctx, rand, size) {
   const base = createFbm(rand, 4, 2, 3)
   const brushed = createPeriodicNoise(rand, 2, 128)
   const stripes = Array.from({ length: 5 }, () => ({
@@ -369,7 +393,7 @@ const paintMetal: SurfacePainter = (ctx, rand) => {
     strength: 0.3 + rand() * 0.3,
     phase: rand() * TAU,
   }))
-  fillGray(ctx, (u, v) => {
+  yield* fillGray(ctx, size, (u, v) => {
     let value = 0.4 + 0.1 * base(u, v) + 0.05 * brushed(u, v)
     for (const { center, width, strength, phase } of stripes) {
       const offset = (v - center + 0.01 * Math.sin(TAU * u * 3 + phase)) / width
@@ -380,10 +404,10 @@ const paintMetal: SurfacePainter = (ctx, rand) => {
 }
 
 // Base oscura con grietas brillantes en las curvas de nivel del ruido
-const paintVolcanic: SurfacePainter = (ctx, rand) => {
+const paintVolcanic: SurfacePainter = function* (ctx, rand, size) {
   const base = createFbm(rand, 6, 3, 5)
   const cracks = createFbm(rand, 5, 3, 5)
-  fillGray(ctx, (u, v) => {
+  yield* fillGray(ctx, size, (u, v) => {
     const ridge = 1 - Math.abs(2 * cracks(u, v) - 1)
     const glow = smoothstep(ridge, 0.75, 0.95) * 0.25
     const crack = smoothstep(ridge, 0.9, 0.98)
@@ -392,21 +416,23 @@ const paintVolcanic: SurfacePainter = (ctx, rand) => {
 }
 
 // Facetas de Voronoi con brillo plano y bordes claros; la distancia en x envuelve para casar el borde
-const paintCrystal: SurfacePainter = (ctx, rand) => {
+const paintCrystal: SurfacePainter = function* (ctx, rand, size) {
+  const { width, height } = size
+  const scale = surfaceScale(size)
   const seeds = Array.from({ length: CRYSTAL_SEEDS }, () => ({
-    x: rand() * SURFACE_WIDTH,
-    y: rand() * SURFACE_HEIGHT,
+    x: rand() * width,
+    y: rand() * height,
     shade: 0.35 + rand() * 0.55,
   }))
-  fillGray(ctx, (u, v) => {
-    const x = u * SURFACE_WIDTH
-    const y = v * SURFACE_HEIGHT
+  yield* fillGray(ctx, size, (u, v) => {
+    const x = u * width
+    const y = v * height
     let nearest = Infinity
     let second = Infinity
     let shade = 0
     for (const seed of seeds) {
       const rawDx = Math.abs(x - seed.x)
-      const dx = Math.min(rawDx, SURFACE_WIDTH - rawDx)
+      const dx = Math.min(rawDx, width - rawDx)
       const dy = y - seed.y
       // Distancias al cuadrado en el bucle; la raíz solo al final
       const distance = dx * dx + dy * dy
@@ -418,7 +444,7 @@ const paintCrystal: SurfacePainter = (ctx, rand) => {
         second = distance
       }
     }
-    const edge = 1 - smoothstep(Math.sqrt(second) - Math.sqrt(nearest), 1, 3)
+    const edge = 1 - smoothstep(Math.sqrt(second) - Math.sqrt(nearest), 1 * scale, 3 * scale)
     return THREE.MathUtils.lerp(shade, 0.97, edge)
   })
 }
@@ -434,16 +460,36 @@ const PATTERN_PAINTERS: Record<PlanetPattern, SurfacePainter> = {
   noise: paintNoise,
 }
 
-function makeSurfaceTexture(pattern: PlanetPattern): THREE.CanvasTexture {
+// Canvas de 1×1 en gris medio: el color de la galaxia lo tiñe igual que a la textura final
+function makePlaceholderCanvas(): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = SURFACE_WIDTH
-  canvas.height = SURFACE_HEIGHT
+  canvas.width = 1
+  canvas.height = 1
   const ctx = canvas.getContext('2d')
-  if (ctx) PATTERN_PAINTERS[pattern](ctx, mulberry32(hashString(pattern, 0) * 0xffffffff))
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.wrapS = THREE.RepeatWrapping
-  return texture
+  if (ctx) {
+    ctx.fillStyle = gray(PLACEHOLDER_GRAY)
+    ctx.fillRect(0, 0, 1, 1)
+  }
+  return canvas
+}
+
+function* noSteps(): Generator<void, void, void> {}
+
+interface SurfaceJob {
+  pattern: PlanetPattern
+  canvas: HTMLCanvasElement // a la resolución de surfaceSize()
+  steps: Generator<void, void, void>
+}
+
+// Crea el canvas final y el generador del painter; no pinta nada hasta el primer next()
+function startSurfaceJob(pattern: PlanetPattern, size: SurfaceSize): SurfaceJob {
+  const canvas = document.createElement('canvas')
+  canvas.width = size.width
+  canvas.height = size.height
+  const ctx = canvas.getContext('2d')
+  // Sin contexto 2D el job termina en el primer paso con el canvas vacío, como antes sin painter
+  const steps = ctx ? PATTERN_PAINTERS[pattern](ctx, mulberry32(hashString(pattern, 0) * 0xffffffff), size) : noSteps()
+  return { pattern, canvas, steps }
 }
 
 function makeAuraTexture(): THREE.CanvasTexture {
@@ -517,7 +563,17 @@ function byLevel<T>(build: (radius: number) => T): Record<CourseLevel, T> {
 
 // Recursos compartidos por todos los planetas; viven con la escena, no con el rebuild de nodos
 export function createPlanetAssets(): PlanetAssets {
+  // Resolución de las superficies según la gama del dispositivo, decidida una vez por escena
+  const size = surfaceSize()
   const surfaces = new Map<PlanetPattern, THREE.CanvasTexture>()
+  const mirroredSurfaces = new Map<PlanetPattern, THREE.CanvasTexture>()
+  // Todos los patrones pendientes comparten este Source; su textura GL se libera cuando ya no la usa nadie
+  const placeholderSource = new THREE.TextureSource(makePlaceholderCanvas())
+  // Cola de generación: se pinta un patrón cada vez, por chunks en callbacks idle
+  const pending: PlanetPattern[] = []
+  let current: SurfaceJob | null = null
+  let cancelScheduled: (() => void) | null = null
+  let disposed = false
   const auraTexture = makeAuraTexture()
   const atmosphereTexture = makeAtmosphereTexture()
   const cores = byLevel((r) => new THREE.SphereGeometry(r, CORE_SEGMENTS, CORE_SEGMENTS))
@@ -525,14 +581,72 @@ export function createPlanetAssets(): PlanetAssets {
   const orbits = byLevel((r) => makeOrbitGeometry(r * ORBIT_RADIUS_FACTOR))
   const decorRings = byLevel((r) => new THREE.RingGeometry(r * DECOR_RING_INNER_FACTOR, r * DECOR_RING_OUTER_FACTOR, RING_SEGMENTS))
 
+  // Source nuevo para el original y su clon: el objeto Texture y el material no cambian, así que no se
+  // recompila nada. Three.js no incluye el Source en la clave de la textura GL, así que sin dispose()
+  // seguiría usando la del placeholder (compartida y ya reservada a 1×1 con texStorage2D).
+  const finishSurfaceJob = (job: SurfaceJob) => {
+    const source = new THREE.TextureSource(job.canvas)
+    for (const texture of [surfaces.get(job.pattern), mirroredSurfaces.get(job.pattern)]) {
+      if (!texture) continue
+      texture.dispose()
+      texture.source = source
+      texture.needsUpdate = true
+    }
+  }
+
+  const scheduleSurfaces = () => {
+    if (disposed || cancelScheduled || (!current && pending.length === 0)) return
+    cancelScheduled = scheduleIdle(runSurfaces)
+  }
+
+  // Siempre avanza al menos un paso, aunque el presupuesto sea 0, para garantizar el progreso
+  function runSurfaces(budget: IdleBudget) {
+    cancelScheduled = null
+    const limit = budget.didTimeout ? SURFACE_CHUNK_BUDGET_MS : Math.min(SURFACE_CHUNK_BUDGET_MS, budget.timeRemaining())
+    const start = performance.now()
+    do {
+      if (!current) {
+        const pattern = pending.shift()
+        if (!pattern) return
+        current = startSurfaceJob(pattern, size)
+      }
+      if (current.steps.next().done) {
+        finishSurfaceJob(current)
+        current = null
+      }
+    } while (performance.now() - start < limit)
+    scheduleSurfaces()
+  }
+
+  const surfaceTexture = (pattern: PlanetPattern) => {
+    let texture = surfaces.get(pattern)
+    if (!texture) {
+      texture = new THREE.CanvasTexture(placeholderSource.data)
+      texture.source = placeholderSource
+      texture.colorSpace = THREE.SRGBColorSpace
+      texture.wrapS = THREE.RepeatWrapping
+      surfaces.set(pattern, texture)
+      pending.push(pattern)
+      scheduleSurfaces()
+    }
+    return texture
+  }
+
   return {
-    surfaceTexture: (pattern) => {
-      let texture = surfaces.get(pattern)
+    surfaceTexture,
+    mirroredSurfaceTexture: (pattern) => {
+      let texture = mirroredSurfaces.get(pattern)
       if (!texture) {
-        texture = makeSurfaceTexture(pattern)
-        surfaces.set(pattern, texture)
+        texture = mirrorSurfaceTexture(surfaceTexture(pattern))
+        mirroredSurfaces.set(pattern, texture)
       }
       return texture
+    },
+    // El patrón que se está pintando no está en pending: no se interrumpe
+    prioritizeSurfaces: (patterns) => {
+      const first = [...new Set(patterns)].filter((pattern) => pending.includes(pattern))
+      const rest = pending.filter((pattern) => !first.includes(pattern))
+      pending.splice(0, pending.length, ...first, ...rest)
     },
     auraTexture,
     atmosphereTexture,
@@ -541,8 +655,16 @@ export function createPlanetAssets(): PlanetAssets {
     orbitGeometry: (level) => orbits[level],
     decorRingGeometry: (level) => decorRings[level],
     dispose: () => {
+      // Tras desmontar no se ejecuta ningún paso más
+      disposed = true
+      cancelScheduled?.()
+      cancelScheduled = null
+      pending.length = 0
+      current = null
       surfaces.forEach((texture) => texture.dispose())
       surfaces.clear()
+      mirroredSurfaces.forEach((texture) => texture.dispose())
+      mirroredSurfaces.clear()
       auraTexture.dispose()
       atmosphereTexture.dispose()
       for (const level of LEVELS) {

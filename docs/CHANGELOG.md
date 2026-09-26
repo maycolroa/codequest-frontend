@@ -6,6 +6,25 @@ Historial de cambios del frontend de Code Quest 2026.
 
 ### Añadido
 
+- Carga diferida de las texturas de superficie en `/starmap` (SPEC 05). La
+  escena monta con un placeholder de 1×1 gris medio (0.5) compartido, y los
+  planetas se ven lisos con el color de su galaxia hasta que llega su
+  textura. El cambio es instantáneo y no recompila shaders.
+- Generación en tiempo idle por chunks de hasta 40 ms
+  (`SURFACE_CHUNK_BUDGET_MS`): un paso es una fila de `fillGray` o una pista
+  o un chip de `circuit`, y cada callback avanza al menos un paso.
+  `requestIdleCallback` con `timeout` de 500 ms; sin él (Safari),
+  `setTimeout` de 1 ms con un deadline sintético de 40 ms.
+- Resolución adaptativa: 256×128 en gama baja (`deviceMemory <= 4` o
+  `hardwareConcurrency <= 4`) y 512×256 en el resto. Una API ausente no
+  cuenta como gama baja.
+- Prioridad por cámara: en cada rebuild de nodos, los patrones pendientes se
+  ordenan por la distancia mínima de sus planetas a la cámara (restaurada de
+  `sessionStorage` o en `CAMERA_HOME` en la primera carga). El patrón en curso
+  no se interrumpe.
+- Módulos nuevos:
+  - `src/lib/galaxy/deviceTier.ts`, con `isLowEndDevice` y `surfaceSize`;
+  - `src/lib/galaxy/idleScheduler.ts`, con `scheduleIdle`.
 - Planetas procedurales en `/starmap` (SPEC 04). Cada planeta lleva una
   textura de superficie en escala de grises generada con canvas 2D según
   `galaxies[0]`:
@@ -48,6 +67,15 @@ Historial de cambios del frontend de Code Quest 2026.
 
 ### Cambiado
 
+- La long task de montaje de `/starmap` ya no incluye el relleno de las
+  texturas de superficie, que era el 81–87 % de su duración (SPEC 05).
+- Los painters son generadores que reciben el tamaño y escalan sus
+  constantes en píxeles por `width / 512`. A 512×256 producen exactamente los
+  mismos píxeles que en SPEC 04.
+- El clon espejado de la superficie es uno por patrón y vive en
+  `PlanetAssets` (`mirroredSurfaceTexture`). `useGalaxyScene` ya no crea ni
+  libera clones por curso.
+- `planetAssets.dispose()` cancela además la generación pendiente.
 - El aura sustituye al halo esférico (`BackSide` de 1.55×) y asume su
   resaltado por galaxia y su crecimiento en hover.
 - Las geometrías del core, del anillo y de la órbita se comparten por nivel, y
