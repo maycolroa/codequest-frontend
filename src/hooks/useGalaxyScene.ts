@@ -63,6 +63,8 @@ interface NebulaNode {
 
 // Escala del mundo: los cursos del contrato llegan hasta ~±70 unidades del origen.
 const WORLD_SCALE = 3
+const CAMERA_STATE_KEY = 'codequest:galaxy-camera-state'
+
 const CAMERA_HOME = new THREE.Vector3(0, 45, 130)
 const STAR_COUNT = 2500
 const SHOOTING_STAR_COUNT = 4
@@ -438,6 +440,13 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     controls.minDistance = 5
     controls.maxDistance = 260
     controls.target.set(0, 0, 0)
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(CAMERA_STATE_KEY) || 'null') as { position?: number[]; target?: number[] } | null
+      if (saved?.position?.length === 3 && saved.target?.length === 3) {
+        camera.position.fromArray(saved.position)
+        controls.target.fromArray(saved.target)
+      }
+    } catch { /* Se usa la vista inicial si no hay una cámara guardada. */ }
     controls.update()
 
     // Luces para los materiales estándar de las esferas
@@ -713,6 +722,12 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
     const targetScale = new THREE.Vector3()
     const clock = new THREE.Clock()
     let animationFrameId = 0
+    let cameraSaveFrame = 0
+    const saveCameraState = (): void => {
+      try {
+        window.sessionStorage.setItem(CAMERA_STATE_KEY, JSON.stringify({ position: camera.position.toArray(), target: controls.target.toArray() }))
+      } catch { /* La cámara es una mejora de navegación, no un requisito. */ }
+    }
     const animate = (): void => {
       animationFrameId = requestAnimationFrame(animate)
       const delta = clock.getDelta()
@@ -806,6 +821,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       }
 
       controls.update()
+      if (++cameraSaveFrame % 10 === 0) saveCameraState()
       renderer.render(scene, camera)
       updateTooltip()
     }
@@ -822,6 +838,9 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       flightRef.current = null
       clearHoverLines()
       clearSelectedLines()
+      try {
+        window.sessionStorage.setItem(CAMERA_STATE_KEY, JSON.stringify({ position: camera.position.toArray(), target: controls.target.toArray() }))
+      } catch { /* La restauración de cámara no debe bloquear la navegación. */ }
       contextRef.current = null
       controls.dispose()
       backgroundGeo.dispose()

@@ -33,9 +33,11 @@ const getPersonalizedDemo = (): UseCourseGalaxyResult => {
     })
     const interestCourses = matches(aliases)
     const courses = interestCourses.length > 0 ? interestCourses : matches(technologies)
-    const keys = new Set(courses.flatMap((course) => course.galaxies))
-    const galaxies = galaxyMock.galaxies.filter((galaxy) => keys.has(galaxy.key))
-    return { galaxies, courses, isLoading: false, isDemo: true }
+    const removedRoutes = new Set(JSON.parse(window.localStorage.getItem('codequest:removed-routes') || '[]') as string[])
+    const filteredCourses = courses.filter((course) => !course.galaxies.every((key) => removedRoutes.has(key)))
+    const keys = new Set(filteredCourses.flatMap((course) => course.galaxies))
+    const galaxies = galaxyMock.galaxies.filter((galaxy) => keys.has(galaxy.key) && !removedRoutes.has(galaxy.key))
+    return { galaxies, courses: filteredCourses, isLoading: false, isDemo: true }
   } catch {
     return { galaxies: galaxyMock.galaxies, courses: galaxyMock.courses, isLoading: false, isDemo: true }
   }
