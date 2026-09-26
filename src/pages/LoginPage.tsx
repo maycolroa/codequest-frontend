@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
@@ -17,6 +17,7 @@ function getAuthErrorMessage(error: unknown, registerMode: boolean): string {
 export default function LoginPage(): JSX.Element {
   const { canvasRef } = useStarMap({ count: 700, background: true })
   const navigate = useNavigate()
+  const location = useLocation()
   const loginWithDiscord = useAuthStore((state) => state.loginWithDiscord)
   const loginWithCredentials = useAuthStore((state) => state.loginWithCredentials)
   const register = useAuthStore((state) => state.register)
@@ -35,7 +36,9 @@ export default function LoginPage(): JSX.Element {
     try {
       if (registerMode) await register(email, username, password)
       else await loginWithCredentials(email, password)
-      navigate('/dashboard', { replace: true })
+      const destination = (location.state as { from?: string } | null)?.from
+      const hasAssessment = Boolean(window.localStorage.getItem('codequest:assessment'))
+      navigate(destination || (hasAssessment ? '/dashboard' : '/assessment'), { replace: true })
     } catch (error: unknown) {
       setError(getAuthErrorMessage(error, registerMode))
     } finally {
@@ -45,7 +48,11 @@ export default function LoginPage(): JSX.Element {
 
   const handleDiscord = (): void => {
     loginWithDiscord()
-    if (import.meta.env.VITE_MOCK_MODE === 'true') navigate('/dashboard', { replace: true })
+    if (import.meta.env.VITE_MOCK_MODE === 'true') {
+      const destination = (location.state as { from?: string } | null)?.from
+      const hasAssessment = Boolean(window.localStorage.getItem('codequest:assessment'))
+      navigate(destination || (hasAssessment ? '/dashboard' : '/assessment'), { replace: true })
+    }
   }
 
   const switchMode = (): void => {
@@ -54,9 +61,9 @@ export default function LoginPage(): JSX.Element {
     setPassword('')
   }
 
-  return <section className="relative grid min-h-screen place-items-center overflow-hidden bg-brand-darker p-6 text-white sm:p-8">
+  return <section className="login-screen relative grid min-h-screen place-items-center overflow-hidden bg-brand-darker p-6 text-white sm:p-8">
     <canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" />
-    <div className="relative z-10 w-full max-w-lg rounded-2xl border border-brand-purple/70 bg-brand-dark/95 p-7 shadow-2xl shadow-brand-purple/20 backdrop-blur-md sm:p-10">
+    <div className="login-card relative z-10 w-full max-w-lg rounded-2xl border border-brand-purple/70 bg-brand-dark/95 p-7 shadow-2xl shadow-brand-purple/20 backdrop-blur-md sm:p-10">
       <div className="mb-8 border-b border-white/10 pb-6">
         <p className="text-xs font-semibold tracking-[0.12em] text-brand-lime">Acceso al universo</p>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{registerMode ? 'Crea tu cuenta' : 'Inicia sesión'}</h1>
