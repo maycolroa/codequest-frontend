@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, Compass, Orbit, Sparkles } from 'lucide-react'
+import { ArrowRight, Compass, Orbit, Route, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Navbar from '@/components/layout/Navbar'
 import { useAuthStore } from '@/stores/auth.store'
@@ -128,9 +128,6 @@ export default function DashboardPage(): JSX.Element {
   const completionPercent = totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0
   const orbitHours = progress.reduce((total, item) => total + (item.course?.durationHours || 0), 0)
   const resumeCourse = progress.find((item) => item.status === 'in_progress') || progress.find((item) => item.status === 'not_started')
-  const assessment = (() => { try { return JSON.parse(window.localStorage.getItem(ASSESSMENT_STORAGE_KEY) || '{}') as { level?: string } } catch { return {} } })()
-  const level = assessment.level || 'intermedio'
-  const displayLevel = level.charAt(0).toUpperCase() + level.slice(1)
   return <section className="dashboard-screen dashboard-personalized">
     <canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" />
     <div className="dashboard-personalized-content">
@@ -138,9 +135,9 @@ export default function DashboardPage(): JSX.Element {
       <header className="personalized-heading">
         <div>
           <p className="dashboard-eyebrow">Tu universo</p>
-          <h1>Hola, {user?.username?.trim().split(/\s+/)[0] || 'explorador'}</h1>
+          <h1>Hola, {user?.username?.trim().split(/\s+/)[0] || "explorador"}. Tu misión continúa.</h1>
         </div>
-        <div className="personalized-level">Nivel · {displayLevel} <span>{user?.username?.charAt(0).toUpperCase() || 'E'}</span></div>
+        <Link to="/routes" className="personalized-routes-button"><Route size={16} /> Ver rutas</Link>
       </header>
       <div className="personalized-grid">
         <section className="personalized-map dashboard-panel">

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import StepIndicator from '@/components/assessment/StepIndicator'
 import InterestsStep from '@/components/assessment/InterestsStep'
 import LevelStep from '@/components/assessment/LevelStep'
@@ -24,8 +24,13 @@ const steps: Array<[keyof AssessmentPayload, string, string[]]> = [
 
 export default function AssessmentPage(): JSX.Element {
   const navigate = useNavigate()
+  const location = useLocation()
+  const addingRoutes = location.state?.addRoutes === true
   const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<AssessmentPayload>({ interests: [], level: '', goals: [], technologies: [] })
+  const [answers, setAnswers] = useState<AssessmentPayload>(() => {
+    if (!addingRoutes) return { interests: [], level: '', goals: [], technologies: [] }
+    try { return JSON.parse(window.localStorage.getItem('codequest:assessment') || '{}') as AssessmentPayload } catch { return { interests: [], level: '', goals: [], technologies: [] } }
+  })
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({ resolver: zodResolver(schema), shouldUnregister: true })
@@ -36,13 +41,23 @@ export default function AssessmentPage(): JSX.Element {
     : answers.interests
   const submit = async ({ answer }: FormValues): Promise<void> => {
     const values = Array.isArray(answer) ? answer : [answer]
-    const next = { ...answers, [field]: field === 'level' ? values[0] : values }
+    const next = { ...answers, [field]: field === 'interests' && addingRoutes ? [...new Set([...answers.interests, ...values])] : field === 'level' ? values[0] : values }
     setAnswers(next)
     if (step === steps.length - 1) {
       setSubmitting(true)
       setSubmitError('')
       try {
-        await assessmentsService.submit(next)
+        let payload = next
+        if (addingRoutes) {
+          try {
+            const stored = JSON.parse(window.localStorage.getItem('codequest:assessment') || '{}') as Partial<AssessmentPayload>
+            payload = {
+              ...next,
+              interests: [...new Set([...(stored.interests || []), ...next.interests])],
+            }
+          } catch { /* Se mantiene la selección actual si no hay datos previos válidos. */ }
+        }
+        await assessmentsService.submit(payload)
         navigate('/starmap', { replace: true, state: { fromAssessment: true } })
       } catch {
         setSubmitError('No pudimos crear tu ruta. Revisa tu conexión e inténtalo de nuevo.')
