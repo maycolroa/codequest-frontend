@@ -2,6 +2,61 @@
 
 Historial de cambios del frontend de Code Quest 2026.
 
+## 2026-09-26
+
+### Añadido
+
+- Planetas procedurales en `/starmap` (SPEC 04). Cada planeta lleva una
+  textura de superficie en escala de grises generada con canvas 2D según
+  `galaxies[0]`:
+  - `ai-ml`: circuito; `frontend`: océano; `backend`: roca;
+    `fundamentals`: arena; `mobile`: metal; `devops`: volcánico;
+    `dotnet-java`: cristal;
+  - cualquier otra galaxia usa el patrón `noise` como fallback.
+- La textura se tiñe con el color mezclado de la galaxia (`map` +
+  `emissiveMap`), y cada patrón tiene su `roughness` y `metalness`.
+- Giro e inclinación iniciales deterministas por `course.id`: cada planeta de
+  una galaxia muestra una cara distinta de la misma textura.
+- Aura de polvo cósmico (`THREE.Sprite`) en todos los planetas, activos e
+  inactivos: 2.5× el radio, blending aditivo, opacity base 0.2 y giro lento en
+  sentido contrario al planeta. Con `prefers-reduced-motion` no gira.
+- Órbita fina (`LineLoop`) a 2.3× el radio en los cursos avanzados, con
+  inclinación y azimut deterministas por `course.id`. Convive con el anillo de
+  segunda galaxia.
+- Atmósfera en todos los planetas: un segundo `Sprite` aditivo de 2.0× el
+  radio con el color puro de la galaxia. Opacity base por galaxia
+  (`GALAXY_ATMOSPHERE`, 0.24–0.36, fallback 0.30) que sube a 0.65 en hover o
+  selección. En los inactivos, × `INACTIVE_OPACITY`.
+- Emissive base por galaxia (`GALAXY_EMISSIVE`): `ai-ml` × 1.4, `mobile`
+  × 1.3, `devops` × 1.2 y `fundamentals` × 0.9; el resto, × 1.
+- Brillo de hover/selección: el planeta en hover o seleccionado sube su
+  emissive × 1.6. Si su galaxia está atenuada, gana siempre la atenuación.
+- Anillo decorativo fino (1.55–1.6× el radio) en todos los planetas, con el
+  color de la galaxia aclarado hacia blanco, opacity 0.2 e inclinación
+  determinista por curso.
+- Variación por curso dentro de una galaxia, sin texturas extra:
+  - tono del aura rotado ±30° de hue;
+  - superficie espejada en la mitad de los planetas (clon que comparte la
+    textura de GPU);
+  - contraste de la superficie entre 0.85 y 1.15, con un uniform inyectado
+    en el shader del core (un solo programa para todos);
+  - saturación (±0.15) y luminosidad (±0.10) del core.
+- Módulos nuevos:
+  - `src/lib/galaxy/planetVisuals.ts`, con los patrones, las texturas y las
+    geometrías compartidas (`createPlanetAssets`);
+  - `src/lib/galaxy/hash.ts`, con `hashString`.
+
+### Cambiado
+
+- El aura sustituye al halo esférico (`BackSide` de 1.55×) y asume su
+  resaltado por galaxia y su crecimiento en hover.
+- Las geometrías del core, del anillo y de la órbita se comparten por nivel, y
+  las texturas se cachean por patrón. Viven con la escena, así que filtrar ya
+  no recrea recursos de GPU. Los materiales siguen siendo por curso.
+- `LEVEL_RADIUS` y `hashString` salen de `useGalaxyScene` a `src/lib/galaxy/`.
+- `roughness` y `metalness` del core dependen del patrón (`PATTERN_SURFACE`)
+  en lugar de los fijos 0.15 y 0.7.
+
 ## 2026-09-23
 
 ### Añadido

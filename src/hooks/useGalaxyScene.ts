@@ -1,9 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { CourseLevel, Galaxy, GalaxyCourse } from '@/types'
+import type { Galaxy, GalaxyCourse } from '@/types'
 import { courseEmphasis, resolveActiveGalaxies, resolveIntensifiedNebula } from '@/lib/galaxy/galaxyHighlight'
 import type { Emphasis } from '@/lib/galaxy/galaxyHighlight'
+import { hashString } from '@/lib/galaxy/hash'
+import {
+  applySurfaceContrast,
+  atmosphereOpacityForGalaxy,
+  auraColor,
+  createPlanetAssets,
+  decorRingOrientation,
+  emissiveForGalaxy,
+  LEVEL_RADIUS,
+  mirrorSurfaceTexture,
+  orbitOrientation,
+  PATTERN_SURFACE,
+  patternForGalaxy,
+  planetOrientation,
+  surfaceVariant,
+} from '@/lib/galaxy/planetVisuals'
+import type { PlanetAssets } from '@/lib/galaxy/planetVisuals'
 import { createRelationLines, SELECTED_LINE_INTENSITY } from '@/lib/galaxy/relationLines'
 import type { RelationLines } from '@/lib/galaxy/relationLines'
 
@@ -36,6 +53,7 @@ interface SceneContext {
   camera: THREE.PerspectiveCamera
   renderer: THREE.WebGLRenderer
   controls: OrbitControls
+  planetAssets: PlanetAssets
   setHovered: (slug: string | null) => void
   refreshEmphasis: () => void
   refreshSelectedLines: () => void
@@ -46,12 +64,19 @@ export interface CourseNode {
   course: GalaxyCourse
   group: THREE.Group
   core: THREE.Mesh
-  halo: THREE.Mesh | null
+  aura: THREE.Sprite // polvo cósmico: no participa en el picking
+  atmosphere: THREE.Sprite // color puro de la galaxia: no participa en el picking
+  orbit: THREE.LineLoop | null // solo en cursos avanzados
+  decorRing: THREE.Mesh // anillo decorativo fino en todos los planetas
   ring: THREE.Mesh | null
   light: THREE.PointLight | null
   baseRadius: number
   baseOpacity: number // 1 o INACTIVE_OPACITY
-  baseEmissive: number // ACTIVE_EMISSIVE o INACTIVE_EMISSIVE
+  baseEmissive: number // (ACTIVE_EMISSIVE o INACTIVE_EMISSIVE) × GALAXY_EMISSIVE de su galaxia principal
+  baseAuraOpacity: number // AURA_OPACITY o AURA_OPACITY × INACTIVE_OPACITY
+  baseOrbitOpacity: number // ORBIT_OPACITY o ORBIT_OPACITY × INACTIVE_OPACITY
+  baseAtmosphereOpacity: number // GALAXY_ATMOSPHERE o GALAXY_ATMOSPHERE × INACTIVE_OPACITY
+  baseDecorRingOpacity: number // DECOR_RING_OPACITY o DECOR_RING_OPACITY × INACTIVE_OPACITY
 }
 
 interface NebulaNode {
@@ -68,7 +93,6 @@ const CAMERA_STATE_KEY = 'codequest:galaxy-camera-state'
 const CAMERA_HOME = new THREE.Vector3(0, 45, 130)
 const STAR_COUNT = 2500
 const SHOOTING_STAR_COUNT = 4
-const LEVEL_RADIUS: Record<CourseLevel, number> = { beginner: 0.3, intermediate: 0.5, advanced: 0.7 }
 const INACTIVE_OPACITY = 0.35
 const ACTIVE_EMISSIVE = 0.6
 const INACTIVE_EMISSIVE = 0.3
@@ -89,7 +113,21 @@ const SELECTED_SCALE = 1.2
 const CLICK_TOLERANCE_PX = 6
 const FOCUS_DISTANCE = 14
 const FLIGHT_LERP = 0.08
-const HALO_OPACITY = 0.35
+// Aura de polvo cósmico: radio visible respecto al del planeta (el sprite mide el diámetro)
+const AURA_RADIUS_FACTOR = 2.5
+const AURA_OPACITY = 0.2
+// rad/s, en sentido contrario al giro del core
+const AURA_ROTATION_SPEED = 0.15
+// Atmósfera: resplandor del color puro de la galaxia, más pequeño que el aura
+const ATMOSPHERE_RADIUS_FACTOR = 2.0
+// Opacity en hover o selección (× INACTIVE_OPACITY en inactivos)
+const ATMOSPHERE_SPOTLIGHT_OPACITY = 0.65
+// Órbita fina de los cursos avanzados
+const ORBIT_OPACITY = 0.3
+// Anillo decorativo: color mezclado llevado hacia blanco
+const DECOR_RING_OPACITY = 0.2
+const DECOR_RING_WHITE_MIX = 0.5
+const DECOR_RING_WHITE = new THREE.Color('#ffffff')
 const RING_OPACITY = 0.8
 const LIGHT_INTENSITY = 2.5
 const LIGHT_HOVER_INTENSITY = 6
@@ -97,7 +135,12 @@ const LIGHT_HOVER_INTENSITY = 6
 const EMPHASIS_LERP = 0.1
 const DIMMED_OPACITY = 0.2
 const EMPHASIS_EMISSIVE: Record<Emphasis, number> = { neutral: 1, highlighted: 1.4, dimmed: 0.3 }
-// Halo, anillo y point light
+// Variación de saturación y luminosidad del core por curso, sin cambiar el hue
+const CORE_SATURATION_RANGE = 0.15
+const CORE_LIGHTNESS_RANGE = 0.1
+// Emissive del planeta en hover o seleccionado; dimmed gana siempre
+const SPOTLIGHT_EMISSIVE = 1.6
+// Aura, atmósfera, órbita, anillos y point light
 const EMPHASIS_GLOW: Record<Emphasis, number> = { neutral: 1, highlighted: 1.3, dimmed: 0.2 }
 const NEBULA_INTENSIFIED_OPACITY = 0.6
 const NEBULA_INTENSIFIED_SCALE = 1.25
@@ -203,16 +246,6 @@ function detectWebGL(): boolean {
   } catch {
     return false
   }
-}
-
-// FNV-1a de 32 bits: hash estable del id para la posición de respaldo
-function hashString(value: string, seed: number): number {
-  let hash = 0x811c9dc5 ^ seed
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return (hash >>> 0) / 0xffffffff
 }
 
 function resolvePosition(course: GalaxyCourse, galaxyByKey: Map<string, Galaxy>): THREE.Vector3 {
@@ -437,6 +470,8 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
 
     // Campo de partículas
     const circleTexture = makeCircleTexture()
+    // Geometrías y texturas compartidas por los planetas: viven con la escena, no con el rebuild de nodos
+    const planetAssets = createPlanetAssets()
     const starPositions = new Float32Array(STAR_COUNT * 3)
     const starColors = new Float32Array(STAR_COUNT * 3)
     const palette = ['#60A5FA', '#A855F7', '#34D399', '#FBBF24', '#FFFFFF'].map((hex) => new THREE.Color(hex))
@@ -641,7 +676,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       tooltip.style.visibility = 'visible'
     }
 
-    contextRef.current = { scene, camera, renderer, controls, setHovered, refreshEmphasis, refreshSelectedLines, clearSelectedLines }
+    contextRef.current = { scene, camera, renderer, controls, planetAssets, setHovered, refreshEmphasis, refreshSelectedLines, clearSelectedLines }
 
     const resize = (): void => {
       const width = container.clientWidth
@@ -699,7 +734,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
         }
       })
 
-      nodesRef.current.forEach(({ course, core, halo, ring, light, baseOpacity, baseEmissive }) => {
+      nodesRef.current.forEach(({ course, core, aura, atmosphere, orbit, decorRing, ring, light, baseRadius, baseOpacity, baseEmissive, baseAuraOpacity, baseOrbitOpacity, baseAtmosphereOpacity, baseDecorRingOpacity }) => {
         const isHovered = course.slug === hoveredSlug
         const emphasis = courseEmphasis(course, activeGalaxies)
         const glow = EMPHASIS_GLOW[emphasis]
@@ -709,14 +744,28 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
         const coreMat = core.material as THREE.MeshStandardMaterial
         const coreOpacity = emphasis === 'dimmed' ? Math.min(DIMMED_OPACITY, baseOpacity) : baseOpacity
         coreMat.opacity = THREE.MathUtils.lerp(coreMat.opacity, coreOpacity, EMPHASIS_LERP)
-        coreMat.emissiveIntensity = THREE.MathUtils.lerp(coreMat.emissiveIntensity, baseEmissive * EMPHASIS_EMISSIVE[emphasis], EMPHASIS_LERP)
-        if (halo) {
-          const haloScale = isHovered ? HOVER_SCALE * 1.4 : 1
-          halo.scale.lerp(targetScale.setScalar(haloScale), 0.1)
-          halo.rotation.z -= 0.006
-          const haloMat = halo.material as THREE.MeshBasicMaterial
-          haloMat.opacity = THREE.MathUtils.lerp(haloMat.opacity, Math.min(1, HALO_OPACITY * glow), EMPHASIS_LERP)
+        // dimmed gana siempre; el planeta en hover o seleccionado brilla más que el resto de su galaxia
+        const isSpotlit = isHovered || course.slug === selectedIdRef.current
+        const emissiveFactor = emphasis !== 'dimmed' && isSpotlit ? SPOTLIGHT_EMISSIVE : EMPHASIS_EMISSIVE[emphasis]
+        coreMat.emissiveIntensity = THREE.MathUtils.lerp(coreMat.emissiveIntensity, baseEmissive * emissiveFactor, EMPHASIS_LERP)
+        // El Sprite no hereda la escala del core: se interpola hacia su propio target
+        const auraSize = AURA_RADIUS_FACTOR * 2 * baseRadius * (isHovered ? HOVER_SCALE : 1)
+        aura.scale.lerp(targetScale.set(auraSize, auraSize, 1), EMPHASIS_LERP)
+        aura.material.opacity = THREE.MathUtils.lerp(aura.material.opacity, Math.min(1, baseAuraOpacity * glow), EMPHASIS_LERP)
+        if (!reducedMotionRef.current) aura.material.rotation -= delta * AURA_ROTATION_SPEED
+        // dimmed gana siempre; en hover o selección la atmósfera sube a su valor de foco
+        const atmosphereOpacity = emphasis === 'dimmed'
+          ? baseAtmosphereOpacity * glow
+          : isSpotlit
+            ? ATMOSPHERE_SPOTLIGHT_OPACITY * (course.isActive ? 1 : INACTIVE_OPACITY)
+            : Math.min(1, baseAtmosphereOpacity * glow)
+        atmosphere.material.opacity = THREE.MathUtils.lerp(atmosphere.material.opacity, atmosphereOpacity, EMPHASIS_LERP)
+        if (orbit) {
+          const orbitMat = orbit.material as THREE.LineBasicMaterial
+          orbitMat.opacity = THREE.MathUtils.lerp(orbitMat.opacity, Math.min(1, baseOrbitOpacity * glow), EMPHASIS_LERP)
         }
+        const decorRingMat = decorRing.material as THREE.MeshBasicMaterial
+        decorRingMat.opacity = THREE.MathUtils.lerp(decorRingMat.opacity, Math.min(1, baseDecorRingOpacity * glow), EMPHASIS_LERP)
         if (ring) {
           ring.rotation.z += 0.004
           const ringMat = ring.material as THREE.MeshBasicMaterial
@@ -787,6 +836,7 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       starGeo.dispose()
       starMat.dispose()
       circleTexture.dispose()
+      planetAssets.dispose()
       shootingStars.forEach(({ geometry, material }) => { geometry.dispose(); material.dispose() })
       renderer.dispose()
     }
@@ -796,10 +846,12 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
   useEffect(() => {
     const context = contextRef.current
     if (!context) return
+    const { planetAssets } = context
     const galaxyByKey = new Map(galaxies.map((galaxy) => [galaxy.key, galaxy]))
     const nodesGroup = new THREE.Group()
-    const geometries: THREE.BufferGeometry[] = []
     const materials: THREE.Material[] = []
+    // Clones espejados de las texturas de superficie: son del rebuild, no de planetAssets
+    const surfaceClones: THREE.Texture[] = []
     const nodes = new Map<string, CourseNode>()
     // Distancia máxima de los cursos de cada galaxia principal a su centro
     const galaxyExtent = new Map<string, number>()
@@ -817,34 +869,108 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       }
 
       const baseOpacity = course.isActive ? 1 : INACTIVE_OPACITY
-      const baseEmissive = course.isActive ? ACTIVE_EMISSIVE : INACTIVE_EMISSIVE
-      const coreGeo = new THREE.SphereGeometry(baseRadius, 32, 32)
+      // Cada galaxia tiene su propio brillo base (ai-ml luminoso, fundamentals más apagado)
+      const baseEmissive = (course.isActive ? ACTIVE_EMISSIVE : INACTIVE_EMISSIVE) * emissiveForGalaxy(course.galaxies[0])
+      // Textura en gris compartida por patrón: el color de la galaxia la tiñe vía color y emissive
+      const pattern = patternForGalaxy(course.galaxies[0])
+      const variant = surfaceVariant(course.id)
+      let surface = planetAssets.surfaceTexture(pattern)
+      if (variant.mirrored) {
+        surface = mirrorSurfaceTexture(surface)
+        surfaceClones.push(surface)
+      }
+      // Clon del color mezclado: la variación por curso solo afecta al core, no a las demás capas
+      const coreColor = color.clone().offsetHSL(
+        0,
+        (hashString(course.id, 13) - 0.5) * 2 * CORE_SATURATION_RANGE,
+        (hashString(course.id, 14) - 0.5) * 2 * CORE_LIGHTNESS_RANGE,
+      )
       // Siempre transparente para poder interpolar la opacidad al resaltar
       const coreMat = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
+        color: coreColor,
+        emissive: coreColor,
+        map: surface,
+        emissiveMap: surface,
         emissiveIntensity: baseEmissive,
-        roughness: 0.15,
-        metalness: 0.7,
+        ...PATTERN_SURFACE[pattern],
         transparent: true,
         opacity: baseOpacity,
       })
-      const core = new THREE.Mesh(coreGeo, coreMat)
+      applySurfaceContrast(coreMat, variant.contrast)
+      const core = new THREE.Mesh(planetAssets.coreGeometry(course.level), coreMat)
       core.userData = { slug: course.slug }
+      // Cara inicial y eje inclinado deterministas por curso; el loop gira sobre rotation.y (Euler XYZ)
+      const { spin, tilt } = planetOrientation(course.id)
+      core.rotation.set(tilt, spin, 0)
       nodeGroup.add(core)
-      geometries.push(coreGeo)
       materials.push(coreMat)
 
-      let halo: THREE.Mesh | null = null
+      // Aura en todos los planetas, activos e inactivos
+      const baseAuraOpacity = course.isActive ? AURA_OPACITY : AURA_OPACITY * INACTIVE_OPACITY
+      const auraMat = new THREE.SpriteMaterial({
+        map: planetAssets.auraTexture,
+        // Tono propio por curso (±30° de hue) para distinguir planetas de la misma galaxia
+        color: auraColor(color, course.id),
+        transparent: true,
+        opacity: baseAuraOpacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      const aura = new THREE.Sprite(auraMat)
+      const auraSize = AURA_RADIUS_FACTOR * 2 * baseRadius
+      aura.scale.set(auraSize, auraSize, 1)
+      nodeGroup.add(aura)
+      materials.push(auraMat)
+
+      // Atmósfera con el color puro de la galaxia (excepción a la mezcla STAR_TONE); no gira ni escala
+      const baseAtmosphereOpacity = atmosphereOpacityForGalaxy(course.galaxies[0]) * (course.isActive ? 1 : INACTIVE_OPACITY)
+      const atmosphereMat = new THREE.SpriteMaterial({
+        map: planetAssets.atmosphereTexture,
+        color: new THREE.Color(course.galaxyColor),
+        transparent: true,
+        opacity: baseAtmosphereOpacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      const atmosphere = new THREE.Sprite(atmosphereMat)
+      const atmosphereSize = ATMOSPHERE_RADIUS_FACTOR * 2 * baseRadius
+      atmosphere.scale.set(atmosphereSize, atmosphereSize, 1)
+      nodeGroup.add(atmosphere)
+      materials.push(atmosphereMat)
+
+      // Órbita inclinada en los avanzados; no gira
+      let orbit: THREE.LineLoop | null = null
+      const baseOrbitOpacity = course.isActive ? ORBIT_OPACITY : ORBIT_OPACITY * INACTIVE_OPACITY
+      if (course.level === 'advanced') {
+        const orbitMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: baseOrbitOpacity, depthWrite: false })
+        orbit = new THREE.LineLoop(planetAssets.orbitGeometry(course.level), orbitMat)
+        const { tilt, azimuth } = orbitOrientation(course.id)
+        // YXZ: se inclina sobre X y el azimut orienta la inclinación (con XYZ giraría el círculo sobre su normal)
+        orbit.rotation.order = 'YXZ'
+        orbit.rotation.set(tilt, azimuth, 0)
+        nodeGroup.add(orbit)
+        materials.push(orbitMat)
+      }
+
+      // Anillo decorativo fino y claro; RingGeometry está en el plano XY, se tumba con π/2 antes de inclinarlo
+      const baseDecorRingOpacity = course.isActive ? DECOR_RING_OPACITY : DECOR_RING_OPACITY * INACTIVE_OPACITY
+      const decorRingMat = new THREE.MeshBasicMaterial({
+        color: color.clone().lerp(DECOR_RING_WHITE, DECOR_RING_WHITE_MIX),
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: baseDecorRingOpacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      const decorRing = new THREE.Mesh(planetAssets.decorRingGeometry(course.level), decorRingMat)
+      const decorOrientation = decorRingOrientation(course.id)
+      decorRing.rotation.order = 'YXZ'
+      decorRing.rotation.set(Math.PI / 2 + decorOrientation.tilt, decorOrientation.azimuth, 0)
+      nodeGroup.add(decorRing)
+      materials.push(decorRingMat)
+
       let light: THREE.PointLight | null = null
       if (course.isActive) {
-        const haloGeo = new THREE.SphereGeometry(baseRadius * 1.55, 24, 24)
-        const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: HALO_OPACITY, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false })
-        halo = new THREE.Mesh(haloGeo, haloMat)
-        nodeGroup.add(halo)
-        geometries.push(haloGeo)
-        materials.push(haloMat)
-
         light = new THREE.PointLight(course.galaxyColor, LIGHT_INTENSITY, 8, 2)
         nodeGroup.add(light)
       }
@@ -853,7 +979,6 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       let ring: THREE.Mesh | null = null
       const secondGalaxy = course.galaxies[1] ? galaxyByKey.get(course.galaxies[1]) : undefined
       if (secondGalaxy) {
-        const ringGeo = new THREE.RingGeometry(baseRadius * 1.9, baseRadius * 2.05, 64)
         const ringMat = new THREE.MeshBasicMaterial({
           color: new THREE.Color(secondGalaxy.color).lerp(STAR_TONE_GRAY, STAR_TONE_MIX),
           side: THREE.DoubleSide,
@@ -862,15 +987,14 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         })
-        ring = new THREE.Mesh(ringGeo, ringMat)
+        ring = new THREE.Mesh(planetAssets.ringGeometry(course.level), ringMat)
         ring.rotation.x = Math.PI / 2.3
         nodeGroup.add(ring)
-        geometries.push(ringGeo)
         materials.push(ringMat)
       }
 
       nodesGroup.add(nodeGroup)
-      nodes.set(course.slug, { course, group: nodeGroup, core, halo, ring, light, baseRadius, baseOpacity, baseEmissive })
+      nodes.set(course.slug, { course, group: nodeGroup, core, aura, atmosphere, orbit, decorRing, ring, light, baseRadius, baseOpacity, baseEmissive, baseAuraOpacity, baseOrbitOpacity, baseAtmosphereOpacity, baseDecorRingOpacity })
     })
 
     // Una nebulosa por galaxia, en su centro y con su color
@@ -934,8 +1058,9 @@ export function useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, 
       nodesRef.current = new Map()
       nebulaeRef.current = new Map()
       nodes.forEach(({ light }) => light?.dispose())
-      geometries.forEach((geometry) => geometry.dispose())
+      // Las geometrías y texturas de planetAssets son compartidas: se liberan con la escena, no aquí
       materials.forEach((material) => material.dispose())
+      surfaceClones.forEach((texture) => texture.dispose())
       nebulaTexture.dispose()
     }
   }, [courses, flyToNode, galaxies])

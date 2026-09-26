@@ -41,6 +41,8 @@ codequest-frontend/
 │   ├── lib/
 │   │   └── galaxy/                # Módulos de la galaxia 3D que usa useGalaxyScene
 │   │       ├── galaxyHighlight.ts   # Funciones puras de resaltado (sin three ni react)
+│   │       ├── hash.ts              # hashString (FNV-1a) para valores deterministas por id
+│   │       ├── planetVisuals.ts     # Texturas procedurales, aura y geometrías compartidas (Three.js)
 │   │       └── relationLines.ts     # Líneas de relaciones con Line2 (Three.js)
 │   ├── pages/                   # Componentes de página (uno por ruta)
 │   ├── services/                # Instancia de Axios y servicios por módulo
@@ -216,14 +218,66 @@ no provoque renders de React en cada frame.
   - La nebulosa intensificada es la enfocada o la de `galaxies[0]` del curso
     en hover.
   - El set activo solo se recalcula cuando cambian el hover o el foco. En cada
-    frame, el loop interpola la opacidad y el emissive de cada estrella, y la
-    opacidad y la escala de cada nebulosa.
+    frame, el loop interpola la opacidad y el emissive de cada estrella, la
+    opacidad y la escala de su aura, la opacidad de su órbita y de su anillo,
+    y la opacidad y la escala de cada nebulosa.
 - **Tono de las esferas**
   - El color de la galaxia se mezcla un 40 % hacia `#262626` en el core, el
-    halo y el anillo.
+    aura, la órbita y los anillos.
+  - Sobre ese color mezclado, el core varía ±0.15 de saturación y ±0.10 de
+    luminosidad por curso, y el aura rota ±30° de hue por curso
+    (`auraColor`). La órbita y los anillos no varían.
+  - La atmósfera es la excepción: usa el color puro de la galaxia, y es la
+    capa que da identidad de color.
   - `emissiveIntensity` base: 0.6 en los cursos activos y 0.3 en los
-    inactivos.
+    inactivos, × `GALAXY_EMISSIVE` de su galaxia principal (`ai-ml` 1.4,
+    `mobile` 1.3, `devops` 1.2, `fundamentals` 0.9, el resto 1).
+  - El planeta en hover o seleccionado lleva su emissive × 1.6
+    (`SPOTLIGHT_EMISSIVE`) y su atmósfera a 0.65, salvo que esté `dimmed`,
+    que gana siempre. El resto de su galaxia sigue en `highlighted` (× 1.4).
   - La point light, las líneas y las nebulosas usan el color original.
+- **Planetas** (`planetVisuals.ts`)
+  - El patrón de superficie lo decide `galaxies[0]` (`GALAXY_PATTERN`):
+    `ai-ml` circuit, `frontend` ocean, `backend` rock, `fundamentals` sand,
+    `mobile` metal, `devops` volcanic, `dotnet-java` crystal. Cualquier otra
+    key usa `noise`.
+  - Las texturas son de 512×256 en escala de grises, equirectangulares,
+    continuas en horizontal y deterministas (`mulberry32` con semilla
+    `hashString(pattern, 0)`). El material las tiñe con `map` +
+    `emissiveMap`; `PATTERN_SURFACE` fija `roughness` y `metalness`.
+  - `planetOrientation(id)` da el giro y la inclinación inicial del core, y
+    `orbitOrientation(id)` la inclinación y el azimut de la órbita (orden
+    `YXZ`).
+  - Aura: un `Sprite` por curso con textura compartida (gradiente + motas),
+    5 × `baseRadius` de lado. No participa en el picking: un click en el aura
+    fuera del core cuenta como click en el vacío o en una nebulosa.
+  - Atmósfera: un segundo `Sprite` por curso con textura compartida
+    (gradiente con el máximo en el borde del planeta), 2.0× el radio y
+    opacity por galaxia (`GALAXY_ATMOSPHERE`). Tampoco participa en el picking.
+  - Órbita: `LineLoop` de 1 px a 2.3× el radio, solo si
+    `level === 'advanced'`. El anillo de segunda galaxia va a 1.9–2.05×.
+  - Anillo decorativo: `RingGeometry` de 1.55–1.6× en todos los planetas,
+    tumbado con π/2 e inclinado con `decorRingOrientation(id)` (orden `YXZ`).
+  - Variación de superficie (`surfaceVariant`):
+    - espejo en la mitad de los planetas con un clon de la textura
+      (`repeat.x = −1`). Three.js comparte la `WebGLTexture` entre clones
+      con la misma imagen y parámetros, así que no suma texturas. Los clones
+      se liberan en el rebuild de nodos;
+    - contraste 0.85–1.15 con `applySurfaceContrast`: `onBeforeCompile`
+      reemplaza los chunks `map_fragment` y `emissivemap_fragment` y añade el
+      uniform `uSurfaceContrast`. `customProgramCacheKey` fijo, así que todos
+      los cores comparten un programa. Si un update de three cambia esos
+      chunks, el contraste deja de aplicarse sin romper el planeta.
+  - Semillas de `hashString` por curso: 1–3 posición de respaldo, 4–5 órbita,
+    6–7 giro e inclinación del core, 8 tono del aura, 9 espejo, 10 contraste,
+    11–12 anillo decorativo, 13–14 saturación y luminosidad del core. Una
+    variación nueva debe usar una semilla libre (15 en adelante).
+  - Recursos compartidos: `createPlanetAssets()` se crea con la escena y se
+    guarda en `SceneContext.planetAssets`. Geometrías de core, anillos y órbita
+    por nivel, texturas de superficie bajo demanda y cacheadas por patrón (8
+    como máximo), una textura de aura y una de atmósfera. Solo `planetAssets.dispose()`, en el
+    cleanup de la escena, las libera; el rebuild de nodos libera solo los
+    materiales por curso.
 - **Relaciones** (`relationLines.ts`)
   - Cada juego de líneas es un `RelationLines` anclado en el curso origen.
   - Prerequisitos: rojos, con partículas en un solo `THREE.Points`.
@@ -239,6 +293,7 @@ no provoque renders de React en cada frame.
   - no hay partículas, dash animado ni pulso;
   - las líneas aparecen completas;
   - el zoom a curso y a galaxia es instantáneo;
+  - el aura de los planetas no gira (el core sí);
   - el resaltado y las líneas se siguen viendo.
 
 ## Variables de entorno

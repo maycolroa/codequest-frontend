@@ -113,3 +113,16 @@ mover ítems de "Por hacer" a "Completado" a medida que se resuelven.
 - [x] Soporte de `prefers-reduced-motion` en la galaxia 3D
 - [x] Tono de las esferas más suave (emissive 0.6 y color mezclado un 40 %
       hacia gris oscuro)
+- [x] Texturas procedurales por galaxia con canvas 2D: 7 patrones más el
+      fallback `noise` (SPEC 04)
+- [x] Giro e inclinación iniciales deterministas por curso
+- [x] Aura de polvo cósmico en todos los planetas, en lugar del halo
+- [x] Órbita inclinada en los cursos avanzados
+- [x] Geometrías y texturas de planetas compartidas y cacheadas con la escena
+- [x] Atmósfera del color puro de la galaxia, con opacity por galaxia y
+      subida en hover/selección
+- [x] Emissive base por galaxia y brillo × 1.6 del planeta en hover o
+      seleccionado (gana `dimmed`)
+- [x] Anillo decorativo fino en todos los planetas
+- [x] Variación por curso: tono del aura, superficie espejada, contraste y
+      saturación/luminosidad del core
