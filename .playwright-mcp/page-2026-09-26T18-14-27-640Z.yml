@@ -1,0 +1,39 @@
+- generic [ref=f18e2]:
+  - main [ref=f18e3]:
+    - generic [ref=f18e10]:
+      - img "DevTalles" [ref=f18e11]
+      - navigation [ref=f18e12]:
+        - link "Universo" [ref=f18e13] [cursor=pointer]:
+          - /url: /starmap
+        - link "Bitácora" [ref=f18e14] [cursor=pointer]:
+          - /url: /login
+    - generic [ref=f18e15]:
+      - generic [ref=f18e16]:
+        - generic [ref=f18e17]: ● Expedición 2026 · Abierta
+        - heading "CODE QUEST CODE QUEST CODE QUEST 2026 CODE QUEST" [level=1] [ref=f18e18]:
+          - generic [ref=f18e19]: CODE QUEST CODE QUEST CODE QUEST
+          - generic [ref=f18e20]: "2026"
+          - text: CODE QUEST
+        - paragraph [ref=f18e21]: El conocimiento es un universo. Cada curso es una estrella y tu ruta es la constelación que las une.
+        - link [ref=f18e22] [cursor=pointer]:
+          - /url: /login
+          - strong [ref=f18e23]: ●
+          - text: Iniciar sesión
+        - generic [ref=f18e24]: 8.400 exploradoresen ruta
+      - generic [ref=f18e25]:
+        - generic [ref=f18e26]: •
+        - img "Devi saludando" [ref=f18e27]
+    - generic [ref=f18e28]:
+      - article [ref=f18e29]:
+        - text: 01 · Diagnóstico
+        - heading "Cuestionario de 4 pasos" [level=2] [ref=f18e30]
+        - paragraph [ref=f18e31]: Intereses, nivel y ritmo semanal definen tu punto de partida.
+      - article [ref=f18e32]:
+        - text: 02 · Mapa
+        - heading "Ruta visual por nodos" [level=2] [ref=f18e33]
+        - paragraph [ref=f18e34]: Cada nodo es un curso con prerrequisitos y estado en tiempo real.
+      - article [ref=f18e35]:
+        - text: 03 · Progreso
+        - heading "Racha y métricas" [level=2] [ref=f18e36]
+        - paragraph [ref=f18e37]: Horas acumuladas, cursos cerrados y constancia día por día.
+  - region "Notifications alt+T"
