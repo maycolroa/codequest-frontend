@@ -10,6 +10,7 @@ import PathDetailPage from '@/pages/PathDetailPage'
 import CourseLearningPage from '@/pages/CourseLearningPage'
 import RoutesPage from '@/pages/RoutesPage'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import DeviChat from '@/components/devi/DeviChat'
 
 const StarMap3D = lazy(() => import('@/components/galaxy/StarMap3D'))
 
@@ -17,7 +18,7 @@ function ProtectedRoutes(): JSX.Element {
   const { token, user, isAuthenticated, isLoading, fetchMe } = useAuthStore()
   useEffect(() => { if (token && !user && !isLoading) void fetchMe().catch(() => undefined) }, [fetchMe, isLoading, token, user])
   if (isLoading || (token && !user && !isAuthenticated)) return <p className="p-10 text-white">Validando sesión...</p>
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />
+  return isAuthenticated ? <><Outlet /><DeviChat /></> : <Navigate to="/login" replace />
 }
 
 function TokenRedirectHandler(): null {
