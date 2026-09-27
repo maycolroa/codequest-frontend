@@ -11,6 +11,7 @@ import GoalsStep from '@/components/assessment/GoalsStep'
 import TechStep from '@/components/assessment/TechStep'
 import { assessmentsService } from '@/services/assessments.service'
 import type { AssessmentPayload } from '@/types'
+import { useAuthStore } from '@/stores/auth.store'
 import './galaxy-effect.css'
 
 const schema = z.object({ answer: z.union([z.string().min(1), z.array(z.string()).min(1)]) })
@@ -26,6 +27,7 @@ export default function AssessmentPage(): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
   const addingRoutes = location.state?.addRoutes === true
+  const userId = useAuthStore((state) => state.user?.id)
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<AssessmentPayload>(() => {
     if (!addingRoutes) return { interests: [], level: '', goals: [], technologies: [] }
@@ -57,7 +59,8 @@ export default function AssessmentPage(): JSX.Element {
             }
           } catch { /* Se mantiene la selección actual si no hay datos previos válidos. */ }
         }
-        await assessmentsService.submit(payload)
+        if (!userId) throw new Error('Sesión no disponible')
+        await assessmentsService.submit(userId, payload)
         navigate('/starmap', { replace: true, state: { fromAssessment: true } })
       } catch {
         setSubmitError('No pudimos crear tu ruta. Revisa tu conexión e inténtalo de nuevo.')
