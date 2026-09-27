@@ -10,9 +10,16 @@ export const assessmentsService = {
   getById: async (id: string): Promise<Assessment> => import.meta.env.VITE_MOCK_MODE === 'true'
     ? { ...mockAssessment, id }
     : (await api.get<Assessment>(`/assessments/${id}`)).data,
-  // El endpoint real está en desarrollo; mantenemos el flujo local mientras tanto.
-  submit: async (payload: AssessmentPayload): Promise<LearningPath> => {
+  submit: async (profileId: string, payload: AssessmentPayload): Promise<LearningPath> => {
     window.localStorage.setItem(ASSESSMENT_STORAGE_KEY, JSON.stringify(payload))
-    return mockPath
+    if (import.meta.env.VITE_MOCK_MODE === 'true') return mockPath
+    const { data } = await api.post<{ learningPaths: LearningPath[] }>(`/learning-paths/users/${profileId}/generate`, {
+      interests: payload.interests,
+      goals: payload.goals.join(', '),
+      currentLevel: payload.level,
+      availableHoursPerWeek: 6,
+      preferredTechnologies: payload.technologies,
+    })
+    return data.learningPaths[0]
   },
 }

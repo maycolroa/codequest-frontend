@@ -8,6 +8,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { useGalaxyScene } from '@/hooks/useGalaxyScene'
 import type { CourseLevel } from '@/types'
 import { COURSE_LEVEL_LABELS } from '@/utils/format'
+import { coursesService } from '@/services/courses.service'
+import { useAuthStore } from '@/stores/auth.store'
+import Navbar from '@/components/layout/Navbar'
 
 type LevelFilter = CourseLevel | 'all'
 
@@ -26,10 +29,23 @@ export default function StarMap3D(): JSX.Element {
   const [searchTerm, setSearchTerm] = useState('')
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all')
   const [focusedGalaxyKey, setFocusedGalaxyKey] = useState<string | null>(null)
+  const token = useAuthStore((state) => state.token)
+  const userId = useAuthStore((state) => state.user?.id)
+  const [progressByCourseId, setProgressByCourseId] = useState<Map<string, number>>(new Map())
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(new Set())
   const location = useLocation()
   const personalized = location.state?.fromAssessment === true
   const resumeCourseId = location.state?.resumeCourseId as string | undefined
-  const { galaxies, courses, isLoading } = useCourseGalaxy(personalized)
+  const resumeCourseSlug = location.state?.resumeCourseSlug as string | undefined
+    const { galaxies, courses, isLoading } = useCourseGalaxy(personalized)
+
+  useEffect(() => {
+    if (!token || !userId) { setProgressByCourseId(new Map()); return }
+    void coursesService.getMyProgress(userId).then((progress) => {
+      setProgressByCourseId(new Map(progress.map((item) => [item.courseId, item.progressPercent])))
+      setEnrolledCourseIds(new Set(progress.map((item) => item.courseId)))
+    }).catch(() => { setProgressByCourseId(new Map()); setEnrolledCourseIds(new Set()) })
+  }, [token, userId, location.key])
 
   // Índices sobre todos los cursos recibidos, no solo los filtrados
   const courseBySlug = useMemo(() => new Map(courses.map((course) => [course.slug, course])), [courses])
@@ -51,17 +67,19 @@ export default function StarMap3D(): JSX.Element {
   const { isSupported, resetCamera, focusCourse } = useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses: filteredCourses, selectedId: selectedSlug, onHover: setHoveredSlug, onSelect: setSelectedSlug, focusedGalaxyKey: activeFocusKey, onFocusGalaxy: setFocusedGalaxyKey })
 
   useEffect(() => {
-    if (!personalized || selectedSlug || panelDismissed || filteredCourses.length === 0) return
+    if ((!personalized && !resumeCourseId && !resumeCourseSlug) || panelDismissed || filteredCourses.length === 0) return
     const course = resumeCourseId
       ? filteredCourses.find((item) => item.id === resumeCourseId) ?? filteredCourses[0]
-      : filteredCourses[0]
+      : resumeCourseSlug
+        ? filteredCourses.find((item) => item.slug === resumeCourseSlug) ?? filteredCourses[0]
+        : filteredCourses[0]
     setFocusedGalaxyKey(course.galaxies[0] ?? null)
     setSelectedSlug(course.slug)
     focusCourse(course.slug)
-  }, [filteredCourses, focusCourse, panelDismissed, personalized, resumeCourseId, selectedSlug])
+  }, [filteredCourses, focusCourse, location.key, panelDismissed, personalized, resumeCourseId, resumeCourseSlug])
 
   useEffect(() => {
-    if (!personalized || selectedSlug || focusedGalaxyKey || panelDismissed) return
+    if (!personalized || resumeCourseId || resumeCourseSlug || selectedSlug || focusedGalaxyKey || panelDismissed) return
     const firstCourse = filteredCourses[0]
     const firstGalaxy = firstCourse?.galaxies[0]
     if (firstGalaxy) setFocusedGalaxyKey(firstGalaxy)
@@ -78,6 +96,7 @@ export default function StarMap3D(): JSX.Element {
 
   const hoveredCourse = hoveredSlug ? courseBySlug.get(hoveredSlug) ?? null : null
   const selectedCourse = selectedSlug ? courseBySlug.get(selectedSlug) ?? null : null
+  const completedCourseIds = useMemo(() => new Set([...progressByCourseId.entries()].filter(([, progress]) => progress >= 100).map(([courseId]) => courseId)), [progressByCourseId])
 
   // Se limpian búsqueda, filtro y foco para que el curso destino esté siempre en la escena y sin atenuar
   const handleNavigate = useCallback((slug: string) => {
@@ -125,8 +144,9 @@ export default function StarMap3D(): JSX.Element {
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-3 p-4 sm:p-6">
+        <div className="pointer-events-auto"><Navbar /></div>
         <header className="flex items-center justify-between gap-3">
-          <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2.5 shadow-2xl backdrop-blur-xl">
+          <div className="course-galaxy-header pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2.5 shadow-2xl backdrop-blur-xl">
             <div className="rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 p-2 text-white shadow-lg shadow-cyan-500/20">
               <Compass className="h-5 w-5" />
             </div>
@@ -144,7 +164,7 @@ export default function StarMap3D(): JSX.Element {
           </div>
         </header>
 
-        <div className="pointer-events-auto flex flex-wrap items-center gap-2 self-start">
+        <div className="course-galaxy-filters pointer-events-auto flex flex-wrap items-center gap-2 self-start">
           <label className="flex items-center rounded-xl border border-white/10 bg-slate-900/80 px-3 py-1.5 shadow-lg backdrop-blur-md">
             <Search className="mr-2 h-3.5 w-3.5 text-slate-400" />
             <input type="text" placeholder="Buscar curso, tag o galaxia..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-40 bg-transparent font-mono text-xs text-slate-200 placeholder-slate-500 focus:outline-none sm:w-56" aria-label="Buscar cursos" />
@@ -187,7 +207,7 @@ export default function StarMap3D(): JSX.Element {
         </div>
       )}
 
-      {selectedCourse && <CoursePanel course={selectedCourse} galaxyByKey={galaxyByKey} courseBySlug={courseBySlug} onClose={() => { setSelectedSlug(null); setPanelDismissed(true) }} onNavigate={handleNavigate} />}
+      {selectedCourse && <CoursePanel course={selectedCourse} progressPercent={progressByCourseId.get(selectedCourse.id) ?? 0} galaxyByKey={galaxyByKey} courseBySlug={courseBySlug} onClose={() => { setSelectedSlug(null); setPanelDismissed(true) }} onNavigate={handleNavigate} fromAssessment={personalized} completedCourseIds={completedCourseIds} isEnrolled={enrolledCourseIds.has(selectedCourse.id)} />}
 
       {isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center"><LoadingSpinner /></div>}
     </div>

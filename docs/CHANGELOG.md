@@ -2,6 +2,89 @@
 
 Historial de cambios del frontend de Code Quest 2026.
 
+## 2026-09-26
+
+### Añadido
+
+- Carga diferida de las texturas de superficie en `/starmap` (SPEC 05). La
+  escena monta con un placeholder de 1×1 gris medio (0.5) compartido, y los
+  planetas se ven lisos con el color de su galaxia hasta que llega su
+  textura. El cambio es instantáneo y no recompila shaders.
+- Generación en tiempo idle por chunks de hasta 40 ms
+  (`SURFACE_CHUNK_BUDGET_MS`): un paso es una fila de `fillGray` o una pista
+  o un chip de `circuit`, y cada callback avanza al menos un paso.
+  `requestIdleCallback` con `timeout` de 500 ms; sin él (Safari),
+  `setTimeout` de 1 ms con un deadline sintético de 40 ms.
+- Resolución adaptativa: 256×128 en gama baja (`deviceMemory <= 4` o
+  `hardwareConcurrency <= 4`) y 512×256 en el resto. Una API ausente no
+  cuenta como gama baja.
+- Prioridad por cámara: en cada rebuild de nodos, los patrones pendientes se
+  ordenan por la distancia mínima de sus planetas a la cámara (restaurada de
+  `sessionStorage` o en `CAMERA_HOME` en la primera carga). El patrón en curso
+  no se interrumpe.
+- Módulos nuevos:
+  - `src/lib/galaxy/deviceTier.ts`, con `isLowEndDevice` y `surfaceSize`;
+  - `src/lib/galaxy/idleScheduler.ts`, con `scheduleIdle`.
+- Planetas procedurales en `/starmap` (SPEC 04). Cada planeta lleva una
+  textura de superficie en escala de grises generada con canvas 2D según
+  `galaxies[0]`:
+  - `ai-ml`: circuito; `frontend`: océano; `backend`: roca;
+    `fundamentals`: arena; `mobile`: metal; `devops`: volcánico;
+    `dotnet-java`: cristal;
+  - cualquier otra galaxia usa el patrón `noise` como fallback.
+- La textura se tiñe con el color mezclado de la galaxia (`map` +
+  `emissiveMap`), y cada patrón tiene su `roughness` y `metalness`.
+- Giro e inclinación iniciales deterministas por `course.id`: cada planeta de
+  una galaxia muestra una cara distinta de la misma textura.
+- Aura de polvo cósmico (`THREE.Sprite`) en todos los planetas, activos e
+  inactivos: 2.5× el radio, blending aditivo, opacity base 0.2 y giro lento en
+  sentido contrario al planeta. Con `prefers-reduced-motion` no gira.
+- Órbita fina (`LineLoop`) a 2.3× el radio en los cursos avanzados, con
+  inclinación y azimut deterministas por `course.id`. Convive con el anillo de
+  segunda galaxia.
+- Atmósfera en todos los planetas: un segundo `Sprite` aditivo de 2.0× el
+  radio con el color puro de la galaxia. Opacity base por galaxia
+  (`GALAXY_ATMOSPHERE`, 0.24–0.36, fallback 0.30) que sube a 0.65 en hover o
+  selección. En los inactivos, × `INACTIVE_OPACITY`.
+- Emissive base por galaxia (`GALAXY_EMISSIVE`): `ai-ml` × 1.4, `mobile`
+  × 1.3, `devops` × 1.2 y `fundamentals` × 0.9; el resto, × 1.
+- Brillo de hover/selección: el planeta en hover o seleccionado sube su
+  emissive × 1.6. Si su galaxia está atenuada, gana siempre la atenuación.
+- Anillo decorativo fino (1.55–1.6× el radio) en todos los planetas, con el
+  color de la galaxia aclarado hacia blanco, opacity 0.2 e inclinación
+  determinista por curso.
+- Variación por curso dentro de una galaxia, sin texturas extra:
+  - tono del aura rotado ±30° de hue;
+  - superficie espejada en la mitad de los planetas (clon que comparte la
+    textura de GPU);
+  - contraste de la superficie entre 0.85 y 1.15, con un uniform inyectado
+    en el shader del core (un solo programa para todos);
+  - saturación (±0.15) y luminosidad (±0.10) del core.
+- Módulos nuevos:
+  - `src/lib/galaxy/planetVisuals.ts`, con los patrones, las texturas y las
+    geometrías compartidas (`createPlanetAssets`);
+  - `src/lib/galaxy/hash.ts`, con `hashString`.
+
+### Cambiado
+
+- La long task de montaje de `/starmap` ya no incluye el relleno de las
+  texturas de superficie, que era el 81–87 % de su duración (SPEC 05).
+- Los painters son generadores que reciben el tamaño y escalan sus
+  constantes en píxeles por `width / 512`. A 512×256 producen exactamente los
+  mismos píxeles que en SPEC 04.
+- El clon espejado de la superficie es uno por patrón y vive en
+  `PlanetAssets` (`mirroredSurfaceTexture`). `useGalaxyScene` ya no crea ni
+  libera clones por curso.
+- `planetAssets.dispose()` cancela además la generación pendiente.
+- El aura sustituye al halo esférico (`BackSide` de 1.55×) y asume su
+  resaltado por galaxia y su crecimiento en hover.
+- Las geometrías del core, del anillo y de la órbita se comparten por nivel, y
+  las texturas se cachean por patrón. Viven con la escena, así que filtrar ya
+  no recrea recursos de GPU. Los materiales siguen siendo por curso.
+- `LEVEL_RADIUS` y `hashString` salen de `useGalaxyScene` a `src/lib/galaxy/`.
+- `roughness` y `metalness` del core dependen del patrón (`PATTERN_SURFACE`)
+  en lugar de los fijos 0.15 y 0.7.
+
 ## 2026-09-23
 
 ### Añadido

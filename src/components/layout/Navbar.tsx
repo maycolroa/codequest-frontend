@@ -1,5 +1,5 @@
 import { LogOut } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 
 export default function Navbar(): JSX.Element {
@@ -8,6 +8,8 @@ export default function Navbar(): JSX.Element {
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
   const displayName = user?.username || user?.email?.split('@')[0] || 'Explorador'
+  const location = useLocation()
+
 
   const handleLogout = (): void => {
     logout()
@@ -15,13 +17,12 @@ export default function Navbar(): JSX.Element {
   }
 
   return <header className="app-navbar">
-    <Link to={authenticated ? '/dashboard' : '/'} className="app-navbar-brand" aria-label="Code Quest, inicio">
+    <Link to={authenticated ? "/dashboard" : "/"} className="app-navbar-brand" aria-label="Code Quest, inicio">
       <img src="/assets/logo-devtalles.png" alt="DevTalles" />
     </Link>
     <nav className="app-navbar-links" aria-label="Navegación principal">
-      <Link to="/starmap">Universo</Link>
-      <a href="#constelaciones">Constelaciones</a>
-      <a href="#bitacora">Bitácora</a>
+      <Link to="/starmap" className={location.pathname === "/starmap" ? "is-active" : undefined}>Universo</Link>
+      <Link to={authenticated ? "/dashboard#bitacora" : "/login"} state={!authenticated ? { from: "/dashboard#bitacora" } : undefined}>Bitácora</Link>
     </nav>
     {authenticated && <div className="app-navbar-user">
       <div className="app-navbar-identity"><span>{displayName}</span>{user?.email && <small>{user.email}</small>}</div>
