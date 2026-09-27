@@ -10,7 +10,6 @@ import { useStarMap } from '@/hooks/useStarMap'
 import { useGalaxyWarp } from '@/hooks/useGalaxyWarp'
 import './galaxy-effect.css'
 
-const streak = Array.from({ length: 28 }, (_, index) => index < 23 || index === 25)
 
 let constellationSeed = 20260921
 const constellationRandom = (): number => {
@@ -28,14 +27,17 @@ export default function DashboardPage(): JSX.Element {
   const galaxyWarpRef = useGalaxyWarp()
   const user = useAuthStore((state) => state.user)
   const [hasAssessment, setHasAssessment] = useState(false)
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true)
   const [progress, setProgress] = useState<UserCourseProgress[]>([])
+  const [streakDays, setStreakDays] = useState(0)
   const [catalog, setCatalog] = useState<CourseGalaxyResponse | null>(null)
+  const streak = Array.from({ length: 28 }, (_, index) => index < streakDays)
 
   useEffect(() => {
     setHasAssessment(Boolean(window.localStorage.getItem(ASSESSMENT_STORAGE_KEY)))
-    void Promise.all([coursesService.getMyProgress(), coursesService.getCourseGalaxy()])
-      .then(([progressData, galaxyData]) => { setProgress(progressData); setCatalog(galaxyData) })
-      .catch(() => undefined)
+    void Promise.all([user?.id ? coursesService.getMyProgress(user.id) : Promise.resolve([]), user?.id ? coursesService.getStreak(user.id) : Promise.resolve({ currentStreak: 0 }), coursesService.getCourseGalaxy()])
+      .then(([progressData, streakData, galaxyData]) => { setProgress(progressData); setHasAssessment(Boolean(window.localStorage.getItem(ASSESSMENT_STORAGE_KEY)) || progressData.length > 0); setStreakDays(streakData.currentStreak); setCatalog(galaxyData) })
+      .catch(() => undefined).finally(() => setIsDashboardLoading(false))
     window.scrollTo(0, 0)
     if (window.location.hash === '#constelaciones') {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
@@ -43,6 +45,7 @@ export default function DashboardPage(): JSX.Element {
     }
   }, [])
 
+  if (isDashboardLoading) return <p className="p-10 text-white">Cargando tu bitácora...</p>
   if (!hasAssessment) {
     return <section className="dashboard-screen dashboard-home">
       <canvas ref={canvasRef} className="starfield-canvas" aria-hidden="true" />
@@ -142,14 +145,14 @@ export default function DashboardPage(): JSX.Element {
       <div className="personalized-grid">
         <section className="personalized-map dashboard-panel">
           <p className="dashboard-label">Mapa general</p>
-          <div className="personalized-ring"><div><strong>{completionPercent}%</strong><span>Conquistado</span></div></div>
+          <div className="personalized-ring" style={{ "--progress": `${completionPercent}%` } as React.CSSProperties}><div><strong>{completionPercent}%</strong><span>Conquistado</span></div></div>
           <div className="personalized-map-footer"><span>{completedCourses} estrellas vivas</span><span>{inProgressCourses} en órbita</span><span>{Math.max(totalCourses - progress.length, 0)} sin explorar</span></div>
         </section>
         <aside className="personalized-side">
           <Metric label="Cursos cerrados" value={String(completedCourses)} suffix={`/ ${totalCourses}`} />
           <Metric label="Horas en órbita" value={String(orbitHours)} suffix="hrs" />
-          <Metric label="Racha" value="23" suffix="días" />
-                    <section className="streak-card dashboard-panel"><p className="dashboard-label green">Racha · 23 días</p><div className="streak-grid">{streak.map((active, index) => <span className={active ? index > 20 ? 'active bright' : 'active' : ''} key={index} />)}</div><p className="streak-message">Una lección hoy mantiene la señal viva.</p></section>
+          <Metric label="Racha" value={String(streakDays)} suffix="días" />
+                    <section className="streak-card dashboard-panel"><p className="dashboard-label green">Racha · {streakDays} días</p><div className="streak-grid">{streak.map((active, index) => <span className={active ? index > 20 ? 'active bright' : 'active' : ''} key={index} />)}</div><p className="streak-message">Una lección hoy mantiene la señal viva.</p></section>
 
         </aside>
       </div>

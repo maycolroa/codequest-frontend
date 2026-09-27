@@ -37,8 +37,7 @@ export default function LoginPage(): JSX.Element {
       if (registerMode) await register(email, username, password)
       else await loginWithCredentials(email, password)
       const destination = (location.state as { from?: string } | null)?.from
-      const hasAssessment = Boolean(window.localStorage.getItem('codequest:assessment'))
-      navigate(destination || (hasAssessment ? '/dashboard' : '/assessment'), { replace: true })
+      navigate(destination || (registerMode ? '/assessment' : '/dashboard'), { replace: true })
     } catch (error: unknown) {
       setError(getAuthErrorMessage(error, registerMode))
     } finally {
@@ -50,8 +49,7 @@ export default function LoginPage(): JSX.Element {
     loginWithDiscord()
     if (import.meta.env.VITE_MOCK_MODE === 'true') {
       const destination = (location.state as { from?: string } | null)?.from
-      const hasAssessment = Boolean(window.localStorage.getItem('codequest:assessment'))
-      navigate(destination || (hasAssessment ? '/dashboard' : '/assessment'), { replace: true })
+      navigate(destination || '/dashboard', { replace: true })
     }
   }
 

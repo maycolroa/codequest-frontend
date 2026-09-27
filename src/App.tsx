@@ -32,7 +32,7 @@ function TokenRedirectHandler(): null {
     const cleanUrl = `${location.pathname}${location.hash}`
     window.history.replaceState({}, document.title, cleanUrl)
     setToken(token)
-    void fetchMe().then(() => { const hasAssessment = Boolean(window.localStorage.getItem('codequest:assessment')); navigate(hasAssessment ? '/dashboard' : '/assessment', { replace: true }) }).catch(() => navigate('/login', { replace: true }))
+    void fetchMe().then(() => navigate('/dashboard', { replace: true })).catch(() => navigate('/login', { replace: true }))
   }, [fetchMe, location.hash, location.pathname, location.search, navigate, setToken])
   return null
 }
