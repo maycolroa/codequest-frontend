@@ -36,6 +36,7 @@ export interface CourseGalaxyResponse {
   courses: GalaxyCourse[]
 }
 
+export interface CourseLesson { id: string; courseId: string; title: string; content: string; videoUrl: string | null; position: number; isPreview: boolean; section: string; completed: boolean }
 export interface UserCourseProgress {
   id: string
   courseId: string

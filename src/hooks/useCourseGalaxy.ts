@@ -52,19 +52,19 @@ export function useCourseGalaxy(personalized = false): UseCourseGalaxyResult {
 
   useEffect(() => {
     // Sin token no se llama al endpoint: el interceptor 401 de api.ts redirigiría al visitante anónimo.
-    if (isMock || personalized || !token) return
+    if (isMock || !token) return
     let cancelled = false
     coursesService.getCourseGalaxy()
       .then((data) => { if (!cancelled) setResult({ token, data, isDemo: false }) })
       .catch(() => {
         if (cancelled) return
         toast.error('No pudimos cargar la galaxia de cursos. Mostrando la galaxia demo.')
-        setResult({ token, data: galaxyMock, isDemo: true })
+        setResult({ token, data: personalized ? getPersonalizedDemo() : galaxyMock, isDemo: true })
       })
     return () => { cancelled = true }
   }, [personalized, token])
 
-  if (isMock || personalized || !token) return personalized ? getPersonalizedDemo() : fullDemoResult
+  if (isMock || !token) return personalized ? getPersonalizedDemo() : fullDemoResult
   // Un resultado de otro token (p. ej. tras re-login) se descarta hasta que llegue el nuevo.
   if (!result || result.token !== token) return loadingResult
   return { galaxies: result.data.galaxies, courses: result.data.courses, isLoading: false, isDemo: result.isDemo }

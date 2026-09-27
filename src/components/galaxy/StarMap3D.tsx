@@ -30,20 +30,22 @@ export default function StarMap3D(): JSX.Element {
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all')
   const [focusedGalaxyKey, setFocusedGalaxyKey] = useState<string | null>(null)
   const token = useAuthStore((state) => state.token)
+  const userId = useAuthStore((state) => state.user?.id)
   const [progressByCourseId, setProgressByCourseId] = useState<Map<string, number>>(new Map())
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(new Set())
   const location = useLocation()
   const personalized = location.state?.fromAssessment === true
   const resumeCourseId = location.state?.resumeCourseId as string | undefined
   const resumeCourseSlug = location.state?.resumeCourseSlug as string | undefined
-  const restoreGalaxyView = location.state?.restoreGalaxyView === true
     const { galaxies, courses, isLoading } = useCourseGalaxy(personalized)
 
   useEffect(() => {
-    if (!token) { setProgressByCourseId(new Map()); return }
-    void coursesService.getMyProgress().then((progress) => {
+    if (!token || !userId) { setProgressByCourseId(new Map()); return }
+    void coursesService.getMyProgress(userId).then((progress) => {
       setProgressByCourseId(new Map(progress.map((item) => [item.courseId, item.progressPercent])))
-    }).catch(() => setProgressByCourseId(new Map()))
-  }, [token])
+      setEnrolledCourseIds(new Set(progress.map((item) => item.courseId)))
+    }).catch(() => { setProgressByCourseId(new Map()); setEnrolledCourseIds(new Set()) })
+  }, [token, userId, location.key])
 
   // Índices sobre todos los cursos recibidos, no solo los filtrados
   const courseBySlug = useMemo(() => new Map(courses.map((course) => [course.slug, course])), [courses])
@@ -65,19 +67,19 @@ export default function StarMap3D(): JSX.Element {
   const { isSupported, resetCamera, focusCourse } = useGalaxyScene({ containerRef, canvasRef, tooltipRef, galaxies, courses: filteredCourses, selectedId: selectedSlug, onHover: setHoveredSlug, onSelect: setSelectedSlug, focusedGalaxyKey: activeFocusKey, onFocusGalaxy: setFocusedGalaxyKey })
 
   useEffect(() => {
-    if ((!personalized && !resumeCourseId && !resumeCourseSlug) || selectedSlug || panelDismissed || filteredCourses.length === 0) return
-    const course = resumeCourseSlug
-      ? filteredCourses.find((item) => item.slug === resumeCourseSlug) ?? filteredCourses[0]
-      : resumeCourseId
-        ? filteredCourses.find((item) => item.id === resumeCourseId) ?? filteredCourses[0]
+    if ((!personalized && !resumeCourseId && !resumeCourseSlug) || panelDismissed || filteredCourses.length === 0) return
+    const course = resumeCourseId
+      ? filteredCourses.find((item) => item.id === resumeCourseId) ?? filteredCourses[0]
+      : resumeCourseSlug
+        ? filteredCourses.find((item) => item.slug === resumeCourseSlug) ?? filteredCourses[0]
         : filteredCourses[0]
     setFocusedGalaxyKey(course.galaxies[0] ?? null)
     setSelectedSlug(course.slug)
-    if (!restoreGalaxyView) focusCourse(course.slug)
-  }, [filteredCourses, focusCourse, panelDismissed, personalized, restoreGalaxyView, resumeCourseId, resumeCourseSlug, selectedSlug])
+    focusCourse(course.slug)
+  }, [filteredCourses, focusCourse, location.key, panelDismissed, personalized, resumeCourseId, resumeCourseSlug])
 
   useEffect(() => {
-    if (!personalized || selectedSlug || focusedGalaxyKey || panelDismissed) return
+    if (!personalized || resumeCourseId || resumeCourseSlug || selectedSlug || focusedGalaxyKey || panelDismissed) return
     const firstCourse = filteredCourses[0]
     const firstGalaxy = firstCourse?.galaxies[0]
     if (firstGalaxy) setFocusedGalaxyKey(firstGalaxy)
@@ -205,7 +207,7 @@ export default function StarMap3D(): JSX.Element {
         </div>
       )}
 
-      {selectedCourse && <CoursePanel course={selectedCourse} progressPercent={progressByCourseId.get(selectedCourse.id) ?? 0} galaxyByKey={galaxyByKey} courseBySlug={courseBySlug} onClose={() => { setSelectedSlug(null); setPanelDismissed(true) }} onNavigate={handleNavigate} fromAssessment={personalized} completedCourseIds={completedCourseIds} />}
+      {selectedCourse && <CoursePanel course={selectedCourse} progressPercent={progressByCourseId.get(selectedCourse.id) ?? 0} galaxyByKey={galaxyByKey} courseBySlug={courseBySlug} onClose={() => { setSelectedSlug(null); setPanelDismissed(true) }} onNavigate={handleNavigate} fromAssessment={personalized} completedCourseIds={completedCourseIds} isEnrolled={enrolledCourseIds.has(selectedCourse.id)} />}
 
       {isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center"><LoadingSpinner /></div>}
     </div>

@@ -17,14 +17,30 @@ interface CoursePanelProps {
   onNavigate: (slug: string) => void
   fromAssessment: boolean
   completedCourseIds: Set<string>
+  isEnrolled: boolean
 }
 
-export default function CoursePanel({ course, progressPercent, galaxyByKey, courseBySlug, onClose, onNavigate, fromAssessment, completedCourseIds }: CoursePanelProps): JSX.Element {
+export default function CoursePanel({ course, progressPercent, galaxyByKey, courseBySlug, onClose, onNavigate, fromAssessment, completedCourseIds, isEnrolled: initiallyEnrolled }: CoursePanelProps): JSX.Element {
   const token = useAuthStore((state) => state.token)
+  const userId = useAuthStore((state) => state.user?.id)
   const [isEnrolling, setIsEnrolling] = useState(false)
-  const [isEnrolled, setIsEnrolled] = useState(false)
+  const [isEnrolled, setIsEnrolled] = useState(initiallyEnrolled)
+  const [remoteProgress, setRemoteProgress] = useState(progressPercent)
+   useEffect(() => { setIsEnrolled(initiallyEnrolled) }, [course.id, initiallyEnrolled])
+  useEffect(() => {
+    let cancelled = false
+    setRemoteProgress(progressPercent)
+    if (!userId) return () => { cancelled = true }
+    void coursesService.getMyProgress(userId).then((progress) => {
+      if (cancelled) return
+      const current = progress.find((item) => item.courseId === course.id)
+      setRemoteProgress(current?.progressPercent ?? 0)
+      setIsEnrolled(Boolean(current))
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [course.id, progressPercent, userId])
   const [isLocallyCompleted, setIsLocallyCompleted] = useState(false)
-  const effectiveProgress = isLocallyCompleted ? 100 : progressPercent
+  const effectiveProgress = isLocallyCompleted ? 100 : remoteProgress
   const locallyCompletedCourseIds = useMemo(() => {
     try { return new Set(JSON.parse(window.localStorage.getItem('codequest:completed-courses') || '[]') as string[]) }
     catch { return new Set<string>() }
@@ -101,14 +117,14 @@ export default function CoursePanel({ course, progressPercent, galaxyByKey, cour
               to={`/courses/${course.id}`} state={{ returnToGalaxy: true, resumeCourseId: course.id, resumeCourseSlug: course.slug, restoreGalaxyView: true, fromAssessment }}
               onClick={() => {
                 setIsEnrolling(true)
-                void coursesService.enroll(course.id)
+                void (isEnrolled ? Promise.resolve() : (userId ? coursesService.enroll(userId, course.id) : Promise.reject(new Error('Sesión no disponible'))))
                   .then(() => { setIsEnrolled(true); toast.success('Te inscribiste al curso') })
                   .catch(() => toast.error('No pudimos inscribirte al curso'))
                   .finally(() => setIsEnrolling(false))
               }}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-brand-lime/50 bg-brand-lime px-4 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-lime-300"
             >
-              {isEnrolling ? <><Loader2 className="h-4 w-4 animate-spin" /> Inscribiendo...</> : isLocallyCompleted ? <><CheckCircle2 className="h-4 w-4" /> Curso completado</> : isEnrolled ? <><CheckCircle2 className="h-4 w-4" /> Inscrito</> : effectiveProgress > 0 ? 'Continuar curso' : 'Comenzar curso'}
+              {isEnrolling ? <><Loader2 className="h-4 w-4 animate-spin" /> Inscribiendo...</> : isLocallyCompleted ? <><CheckCircle2 className="h-4 w-4" /> Curso completado</> : isEnrolled ? <><CheckCircle2 className="h-4 w-4" /> Continuar curso</> : effectiveProgress > 0 ? 'Continuar curso' : 'Comenzar curso'}
             </Link>
           )
         )}
