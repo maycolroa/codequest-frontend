@@ -393,20 +393,27 @@ API nativa de Canvas (`src/hooks/useStarMap.ts`).
 
 ## Variables de entorno
 
+La plantilla está en `.env.example`. Copia a `.env` (no versionado) y ajusta
+los valores. **Nunca** subas el `.env` al repositorio.
+
+| Variable | Obligatoria | Descripción | Ejemplo / formato |
+|----------|-------------|-------------|-------------------|
+| `VITE_API_URL` | Sí (si `VITE_MOCK_MODE=false`) | URL base del backend, **sin slash final** e incluyendo el prefijo `/api/v1`. La usan `services/api.ts` (baseURL de Axios) y el login con Discord (`<VITE_API_URL>/auth/discord`). | Local: `http://localhost:3000/api/v1` · Prod: `https://<backend>.ondigitalocean.app/api/v1` |
+| `VITE_MOCK_MODE` | No (`false`) | `true` usa datos simulados (galaxia demo, login mock) sin llamar al backend. Útil para desarrollar sin backend. Solo el string exacto `true` lo activa. | `true` / `false` |
+| `VITE_APP_NAME` | No | Nombre de la aplicación. | `Code Quest 2026` |
+
+Ejemplo de `.env` para desarrollo local:
+
 ```bash
-# URL base del backend (sin trailing slash)
 VITE_API_URL=http://localhost:3000/api/v1
-
-# Nombre de la app
 VITE_APP_NAME=Code Quest 2026
-
-# Modo mock — true para desarrollo sin backend
-VITE_MOCK_MODE=false
+VITE_MOCK_MODE=true
 ```
 
 En producción:
+
 ```bash
-VITE_API_URL=https://codequest-backend-7ogey.ondigitalocean.app/api/v1
+VITE_API_URL=https://<backend>.ondigitalocean.app/api/v1
 VITE_MOCK_MODE=false
 ```
 
@@ -423,7 +430,7 @@ Configúralos en *Settings → Secrets and variables → Actions* del repositori
 | Secret | Valor | Uso |
 |--------|-------|-----|
 | `DIGITALOCEAN_ACCESS_TOKEN` | Token de API de DigitalOcean | `doctl registry login` para poder hacer `docker push` |
-| `VITE_API_URL` | `https://codequest-backend-7ogey.ondigitalocean.app/api/v1` | `--build-arg` del `docker build` |
+| `VITE_API_URL` | URL del backend de producción (`https://<backend>.ondigitalocean.app/api/v1`) | `--build-arg` del `docker build` |
 
 ---
 
@@ -431,12 +438,23 @@ Configúralos en *Settings → Secrets and variables → Actions* del repositori
 
 > Sigue estos pasos en orden. Cada paso depende del anterior.
 
+### URLs
+
+| Entorno | URL del frontend |
+|---------|------------------|
+| Local (`npm run dev`) | `http://localhost:5173` |
+| Local (`npm run preview`) | `http://localhost:4173` |
+| Local (Docker) | `http://localhost:80` |
+| Producción | https://codequest-frontend-m26va.ondigitalocean.app |
+
 ### Inicio rápido
 
 ```bash
+git clone https://github.com/maycolroa/codequest-frontend.git
+cd codequest-frontend
 npm install
 cp .env.example .env
-# Editar VITE_API_URL en .env
+# Editar VITE_API_URL / VITE_MOCK_MODE en .env
 npm run dev
 # App en http://localhost:5173
 ```
@@ -444,6 +462,13 @@ npm run dev
 ---
 
 ### Requisitos previos
+
+| Herramienta | Versión | Necesaria para |
+|-------------|---------|----------------|
+| Node.js | 20.x o superior (la imagen Docker usa `node:20-alpine`) | Correr Vite y el build |
+| npm | 9.x o superior | Instalar dependencias y correr scripts |
+| Git | cualquiera | Clonar el repositorio |
+| Docker | 24+ (opcional) | Solo para probar la imagen de producción |
 
 Verifica que tienes instalado:
 
@@ -459,7 +484,7 @@ Si no tienes Node.js → descargar en [nodejs.org](https://nodejs.org) versión 
 ### Paso 1 — Clonar el repositorio
 
 ```bash
-git clone https://github.com/tu-equipo/codequest-frontend.git
+git clone https://github.com/maycolroa/codequest-frontend.git
 cd codequest-frontend
 ```
 
@@ -484,7 +509,7 @@ que crearlos ni reemplazarlos.
 cp .env.example .env
 ```
 
-Abre `.env` y edita `VITE_API_URL`:
+Abre `.env` y ajusta las variables (ver [Variables de entorno](#variables-de-entorno)):
 
 ```bash
 # Backend local
@@ -547,22 +572,16 @@ npm run dev
 
 ### Comandos del día a día
 
-```bash
-# Desarrollo con hot-reload
-npm run dev
+| Comando | Qué hace |
+|---------|----------|
+| `npm run dev` | Servidor de desarrollo de Vite con hot-reload en `http://localhost:5173` |
+| `npm run build` | `tsc -b && vite build`: verifica tipos y genera el build de producción en `dist/` |
+| `npm run preview` | Sirve el contenido de `dist/` en `http://localhost:4173` (requiere `npm run build` antes) |
+| `npm run lint` | ESLint sobre todo el proyecto |
+| `npx tsc --noEmit` | Verifica tipos TypeScript sin generar archivos |
 
-# Verificar tipos TypeScript
-npx tsc --noEmit
-
-# Lint del código
-npm run lint
-
-# Build de producción
-npm run build
-
-# Preview del build
-npm run preview
-```
+Las variables `VITE_*` se leen al arrancar `dev` y al ejecutar `build`: si
+cambias el `.env`, reinicia `npm run dev` o vuelve a hacer `npm run build`.
 
 ---
 
