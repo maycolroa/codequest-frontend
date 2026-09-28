@@ -2,6 +2,15 @@
 
 Historial de cambios del frontend de Code Quest 2026.
 
+## 2026-09-28
+
+### Documentación
+
+- README: tabla de variables de entorno con descripción y sin valores reales
+  de producción, tabla de requisitos previos, URL de clonado real, tabla de
+  comandos (`dev`, `build`, `preview`, `lint`) y tabla de URLs del frontend
+  en local y en producción.
+
 ## 2026-09-26
 
 ### Añadido
