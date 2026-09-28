@@ -1,0 +1,1598 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Quest 2026 · Fullstack</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x2='1' y2='1'%3E%3Cstop stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%233b82f6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Ctext x='16' y='21' font-family='sans-serif' font-size='13' font-weight='800' fill='white' text-anchor='middle'%3ECQ%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Arquitectura fullstack de Code Quest 2026: API NestJS con PostgreSQL y SPA React con mapa galáctico en Three.js, desplegadas con Docker en DigitalOcean.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #0a0d13;
+  --panel: #131922;
+  --panel-2: #18202b;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --text: #e6e9f0;
+  --muted: #9aa3b5;
+  --faint: #677186;
+  --purple: #8b5cf6;
+  --purple-soft: #c4b5fd;
+  --blue: #3b82f6;
+  --blue-soft: #93c5fd;
+  --cyan: #22d3ee;
+  --rose: #f43f5e;
+  --rose-soft: #fda4af;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --grad: linear-gradient(135deg, var(--purple), var(--blue));
+  --radius: 14px;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --nav-w: 232px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgba(139, 92, 246, 0.13), transparent 60%),
+    radial-gradient(700px 400px at 10% 10%, rgba(59, 130, 246, 0.08), transparent 60%);
+  background-attachment: fixed;
+}
+a { color: var(--blue-soft); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .mono { font-family: var(--mono); }
+code { font-size: 0.86em; background: rgba(139, 92, 246, 0.12); color: var(--purple-soft); padding: 1px 6px; border-radius: 5px; }
+
+/* ── Navegación ───────────────────────────── */
+.nav {
+  position: fixed; inset: 0 auto 0 0; width: var(--nav-w);
+  border-right: 1px solid var(--line); background: rgba(13, 17, 23, 0.88);
+  backdrop-filter: blur(12px); padding: 28px 16px; display: flex; flex-direction: column; gap: 28px; z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+.brand-logo { width: 34px; height: 34px; border-radius: 10px; background: var(--grad); display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35); }
+.brand b { display: block; font-size: 14px; letter-spacing: -0.01em; }
+.brand span { display: block; font-size: 12px; color: var(--faint); }
+.nav ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: nav; }
+.nav li a {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px;
+  color: var(--muted); font-size: 14px; text-decoration: none; transition: background .15s, color .15s;
+}
+.nav li a::before { counter-increment: nav; content: counter(nav, decimal-leading-zero); font: 11px var(--mono); color: var(--faint); }
+.nav li a:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+.nav li a.active { background: rgba(139, 92, 246, 0.14); color: #fff; box-shadow: inset 2px 0 0 var(--purple); }
+.nav li a.active::before { color: var(--purple-soft); }
+.nav-foot { margin-top: auto; font-size: 12px; color: var(--faint); padding: 0 8px; }
+.nav-foot .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; box-shadow: 0 0 8px var(--green); }
+
+main { margin-left: var(--nav-w); padding: 0 48px 96px; max-width: calc(var(--nav-w) + 1180px); }
+section { padding-top: 64px; }
+.eyebrow { font: 600 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--purple-soft); margin: 0 0 8px; }
+h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
+h2 { font-size: 28px; line-height: 1.2; }
+h3 { font-size: 16px; }
+.lead { color: var(--muted); max-width: 72ch; margin: 10px 0 28px; }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.grid { display: grid; gap: 16px; }
+.grid > *, .steps > * { min-width: 0; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ── Hero / Overview ─────────────────────── */
+.hero { padding-top: 56px; }
+.hero h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.05; font-weight: 800; }
+.hero h1 .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lead { font-size: 17px; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 7px; font: 500 12.5px var(--mono);
+  padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.03); color: var(--text);
+}
+.badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--purple)); box-shadow: 0 0 10px var(--c, var(--purple)); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
+.stat { padding: 16px 18px; }
+.stat b { display: block; font-size: 28px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1.1; }
+.stat span { font-size: 13px; color: var(--muted); }
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.checks li { display: flex; gap: 10px; color: var(--muted); font-size: 14.5px; }
+.checks li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 6px; background: rgba(139, 92, 246, 0.15) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23c4b5fd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5'/%3E%3C/svg%3E") center/14px no-repeat; }
+.checks li strong { color: var(--text); font-weight: 600; }
+
+.steps { counter-reset: step; display: grid; gap: 12px; }
+.step { position: relative; padding: 16px 18px 16px 58px; }
+.step::before {
+  counter-increment: step; content: counter(step); position: absolute; left: 16px; top: 16px;
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  font: 700 13px var(--mono); color: #fff; background: var(--grad);
+}
+.step h3 { font-size: 15px; margin-bottom: 8px; }
+.step p { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); }
+pre {
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line);
+  font-size: 13px; line-height: 1.55; color: #d6d6e7; overflow-x: auto;
+}
+pre .c { color: var(--faint); }
+pre .k { color: var(--purple-soft); }
+
+/* ── Diagrama ────────────────────────────── */
+.diagram { padding: 12px; overflow: hidden; }
+.diagram-scroll { overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 860px; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px 8px 4px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 14px; height: 10px; border-radius: 3px; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }
+.hint { font-size: 12.5px; color: var(--faint); margin-left: auto; }
+
+.c-grid { stroke: rgba(255, 255, 255, 0.035); fill: none; }
+.c-mask { fill: var(--panel); }
+.c-frontend { fill: rgba(59, 130, 246, 0.13); stroke: var(--blue); }
+.c-backend { fill: rgba(139, 92, 246, 0.13); stroke: var(--purple); }
+.c-security { fill: rgba(244, 63, 94, 0.12); stroke: var(--rose); }
+.c-database { fill: rgba(34, 211, 238, 0.10); stroke: var(--cyan); }
+.c-cloud { fill: rgba(129, 140, 248, 0.10); stroke: #818cf8; }
+.c-external { fill: rgba(148, 163, 184, 0.08); stroke: #94a3b8; }
+.c-region { fill: rgba(139, 92, 246, 0.035); stroke: rgba(139, 92, 246, 0.45); stroke-dasharray: 8 4; }
+.t-primary { fill: var(--text); }
+.t-muted { fill: var(--muted); }
+.t-backend { fill: var(--purple-soft); }
+.t-security { fill: var(--rose-soft); }
+.t-cloud, .t-messagebus { fill: var(--blue-soft); }
+.a-default { stroke: #6b6b82; fill: none; }
+.a-emphasis { stroke: var(--purple); fill: none; }
+.a-security { stroke: var(--rose); fill: none; }
+.a-dashed { stroke: var(--blue); fill: none; stroke-dasharray: 5 4; }
+.m-default { fill: #6b6b82; }
+.m-emphasis { fill: var(--purple); }
+.m-security { fill: var(--rose); }
+.m-dashed { fill: var(--blue); }
+.semantic-sigil { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.semantic-sigil .sigil-fill { fill: currentColor; stroke: none; }
+.s-frontend { color: var(--blue-soft); }
+.s-backend { color: var(--purple-soft); }
+.s-security { color: var(--rose-soft); }
+.s-database { color: var(--cyan); }
+.s-cloud { color: #a5b4fc; }
+.s-external { color: #cbd5e1; }
+.brand-mark { pointer-events: none; }
+.brand-mark-badge { fill: #fff; stroke: none; }
+.brand-mark-frame { fill: none; stroke: rgba(0, 0, 0, 0.12); }
+.diagram svg g[data-node-id] { cursor: pointer; outline: none; transition: opacity .2s; }
+.diagram svg [data-edge-id] { transition: opacity .2s; }
+.diagram svg.dim g[data-node-id]:not(.hot), .diagram svg.dim [data-edge-id]:not(.hot) { opacity: 0.18; }
+.diagram svg g[data-node-id]:focus-visible rect:nth-of-type(2) { stroke-width: 2.5; }
+
+.flows { margin-top: 16px; }
+.flow h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.flow h3 i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.flow ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13.5px; display: grid; gap: 5px; }
+.flow ol li::marker { color: var(--faint); font-family: var(--mono); }
+
+/* ── Módulos ─────────────────────────────── */
+.module { display: flex; flex-direction: column; gap: 12px; transition: border-color .2s, transform .2s; }
+.module:hover { border-color: rgba(139, 92, 246, 0.4); transform: translateY(-2px); }
+.module-head { display: flex; align-items: center; gap: 12px; }
+.module-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 16%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); color: var(--c); flex: none; }
+.module-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.module-head h3 { font: 600 15px var(--mono); }
+.module-head span { font-size: 12px; color: var(--faint); font-family: var(--mono); }
+.module p { margin: 0; font-size: 14px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.chip { font: 12px var(--mono); padding: 3px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: #c9c9da; }
+
+/* ── Endpoints ───────────────────────────── */
+.api-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.search {
+  flex: 1 1 260px; display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 40px;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px;
+}
+.search:focus-within { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2); }
+.search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--text); font: 14px var(--mono); }
+.search svg { width: 16px; height: 16px; stroke: var(--faint); fill: none; stroke-width: 2; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab {
+  font: 500 13px var(--sans); color: var(--muted); background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 999px; padding: 7px 13px; cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-pressed="true"] { color: #fff; border-color: transparent; background: var(--grad); }
+.tab small { opacity: .7; margin-left: 4px; font-family: var(--mono); }
+.api { padding: 0; overflow: hidden; }
+.api-group + .api-group { border-top: 1px solid var(--line); }
+.api-group h3 { font: 600 13px var(--mono); color: var(--purple-soft); padding: 14px 18px 6px; display: flex; gap: 10px; align-items: baseline; }
+.api-group h3 span { color: var(--faint); font-weight: 400; }
+.row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 9px 18px; border-top: 1px solid rgba(255, 255, 255, 0.035); }
+.row:hover { background: rgba(255, 255, 255, 0.02); }
+.path { font: 13px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.path em { font-style: normal; color: var(--blue-soft); }
+.desc { display: block; font: 12.5px var(--sans); color: var(--faint); margin-top: 2px; }
+.method { font: 700 11px var(--mono); text-align: center; padding: 4px 0; border-radius: 6px; letter-spacing: .04em; }
+.GET { color: #6ee7b7; background: rgba(52, 211, 153, 0.12); }
+.POST { color: #93c5fd; background: rgba(59, 130, 246, 0.14); }
+.PATCH { color: #fcd34d; background: rgba(251, 191, 36, 0.12); }
+.DELETE { color: #fda4af; background: rgba(244, 63, 94, 0.13); }
+.auth { font: 11.5px var(--mono); padding: 3px 8px; border-radius: 6px; white-space: nowrap; border: 1px solid var(--line-2); color: var(--muted); }
+.auth.jwt { color: var(--purple-soft); border-color: rgba(139, 92, 246, 0.35); }
+.auth.sa { color: var(--rose-soft); border-color: rgba(244, 63, 94, 0.35); }
+.empty { padding: 28px; text-align: center; color: var(--faint); display: none; }
+
+/* ── Base de datos ───────────────────────── */
+.timeline { position: relative; display: grid; gap: 8px; }
+.mig { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; }
+.mig b { font: 700 13px var(--mono); color: var(--purple-soft); }
+.mig .name { font: 13px var(--mono); overflow-wrap: anywhere; }
+.mig .mod { font: 11.5px var(--mono); color: var(--faint); }
+.mig.focus { border-color: rgba(139, 92, 246, 0.35); background: linear-gradient(90deg, rgba(139, 92, 246, 0.10), var(--panel) 60%); }
+.mig.dup b { color: var(--amber); }
+.tables { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.table { padding: 0; overflow: hidden; }
+.table header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.table header b { font: 600 13.5px var(--mono); }
+.table header span { font: 11px var(--mono); color: var(--faint); }
+.table ul { list-style: none; margin: 0; padding: 6px 0; }
+.table li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 3px 14px; font: 12.5px var(--mono); }
+.table li span { overflow-wrap: anywhere; }
+.table li span:first-child { color: #d6d6e7; }
+.table li span:last-child { color: var(--faint); text-align: right; }
+.table li.pk span:first-child { color: var(--amber); }
+.table li.fk span:first-child { color: var(--blue-soft); }
+.table li.hl span:first-child { color: var(--purple-soft); }
+.key-legend { display: flex; gap: 16px; font: 12px var(--mono); color: var(--muted); margin: 0 0 12px; flex-wrap: wrap; }
+.key-legend span::before { content: "●"; margin-right: 6px; color: var(--c); }
+h3.sub { font-size: 18px; margin: 32px 0 14px; }
+
+/* ── CI/CD ───────────────────────────────── */
+.pipeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: stretch; }
+.stage { position: relative; padding: 18px 16px; margin-right: 26px; display: flex; flex-direction: column; gap: 8px; }
+.stage:last-child { margin-right: 0; }
+.stage:not(:last-child)::after {
+  content: ""; position: absolute; right: -22px; top: 50%; width: 18px; height: 2px; background: var(--grad);
+}
+.stage:not(:last-child)::before {
+  content: ""; position: absolute; right: -24px; top: calc(50% - 4px); border: 5px solid transparent; border-left-color: var(--blue);
+}
+.stage .n { font: 11px var(--mono); color: var(--faint); }
+.stage h3 { font-size: 15px; }
+.stage p { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.stage.assumed { border-style: dashed; }
+.pulse { height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: auto; }
+.pulse::after { content: ""; display: block; height: 100%; width: 40%; background: var(--grad); animation: run 2.4s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+/* ── Stack ───────────────────────────────── */
+.stack { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tech { display: flex; flex-direction: column; gap: 12px; }
+.tech-logo { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.tech-logo svg { width: 24px; height: 24px; }
+.tech-logo b { font: 800 14px var(--mono); color: var(--c); }
+.tech h3 { font-size: 15px; }
+.tech .ver { font: 12px var(--mono); color: var(--purple-soft); }
+.tech p { margin: 0; font-size: 13px; color: var(--muted); }
+
+footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 1100px) {
+  .g3, .stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pipeline { grid-template-columns: 1fr; }
+  .stage { margin: 0 0 22px; }
+  .stage:not(:last-child)::after { right: auto; left: 50%; top: auto; bottom: -18px; width: 2px; height: 14px; }
+  .stage:not(:last-child)::before { right: auto; left: calc(50% - 4px); top: auto; bottom: -24px; border-left-color: transparent; border-top-color: var(--blue); }
+}
+@media (max-width: 900px) {
+  .nav { position: sticky; inset: 0 auto auto 0; width: 100%; height: auto; flex-direction: row; align-items: center; padding: 10px 16px; gap: 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand > div:last-child, .nav-foot { display: none; }
+  .brand { padding: 0; flex: none; }
+  .nav ol { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .nav li a { white-space: nowrap; padding: 6px 10px; }
+  .nav li a::before { display: none; }
+  .nav li a.active { box-shadow: inset 0 -2px 0 var(--purple); }
+  main { margin-left: 0; padding: 0 16px 64px; }
+  html { scroll-padding-top: 72px; }
+  section { padding-top: 48px; }
+  .g2, .g3 { grid-template-columns: 1fr; }
+  .tables { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .row { grid-template-columns: 64px minmax(0, 1fr); }
+  .row .auth { grid-column: 2; justify-self: start; }
+  .mig { grid-template-columns: 48px minmax(0, 1fr); }
+  .mig .mod { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .pulse::after { animation: none; }
+  .module:hover { transform: none; }
+}
+
+/* ══ Frontend ═════════════════════════════ */
+code { overflow-wrap: anywhere; }
+pre .s { color: #86efac; }
+pre .b { color: var(--blue-soft); }
+.tbl { padding: 0; overflow: hidden; }
+.tbl-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font: 600 11.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 12px 16px; background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 11px 16px; border-top: 1px solid rgba(255, 255, 255, 0.035); vertical-align: top; color: var(--muted); }
+tr:hover td { background: rgba(255, 255, 255, 0.02); }
+td.name { color: var(--text); font-weight: 600; white-space: nowrap; }
+td.ver { font: 13px var(--mono); color: var(--purple-soft); white-space: nowrap; }
+td.route { font: 13px var(--mono); color: var(--text); white-space: nowrap; }
+td.route em { font-style: normal; color: var(--blue-soft); }
+td.comp { font: 13px var(--mono); color: var(--purple-soft); white-space: nowrap; }
+.auth { font: 11.5px var(--mono); padding: 3px 8px; border-radius: 6px; white-space: nowrap; border: 1px solid var(--line-2); color: var(--muted); display: inline-block; }
+.auth.jwt { color: var(--purple-soft); border-color: rgba(139, 92, 246, 0.35); }
+.auth.lazy { color: var(--blue-soft); border-color: rgba(59, 130, 246, 0.35); }
+
+/* ── Árbol de carpetas ───────────────────── */
+.tree { font: 13px/1.75 var(--mono); padding: 18px 20px; }
+.tree .trow { display: grid; grid-template-columns: minmax(230px, max-content) minmax(0, 1fr); gap: 18px; align-items: baseline; }
+.tree .trow + .row { border-top: 1px dashed rgba(255, 255, 255, 0.04); }
+.tree .p { white-space: pre; color: var(--faint); }
+.tree .p b { color: var(--blue-soft); font-weight: 500; }
+.tree .p i { color: #d6dbe7; font-style: normal; }
+.tree .p b.hot { color: var(--purple-soft); font-weight: 600; }
+.tree .d { font-family: var(--sans); font-size: 13.5px; color: var(--muted); }
+
+.module ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); display: grid; gap: 4px; }
+.module ul li::marker { color: var(--purple); }
+.module.wide { grid-column: 1 / -1; }
+.module-head h3, .module-head span { overflow-wrap: anywhere; }
+
+.patterns { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pattern { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); }
+.pattern canvas { width: 40px; height: 40px; border-radius: 50%; flex: none; box-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); }
+.pattern b { display: block; font: 600 12.5px var(--mono); color: var(--text); }
+.pattern span { display: block; font: 11.5px var(--mono); color: var(--faint); }
+
+/* ── Flujo de renderizado ────────────────── */
+.flowline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 20px; }
+.flowline span { font: 12.5px var(--mono); padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line-2); color: var(--text); }
+.flowline span.hl { border-color: rgba(139, 92, 246, 0.45); color: var(--purple-soft); }
+.flowline i { width: 16px; height: 2px; background: var(--grad); position: relative; }
+.flowline i::after { content: ""; position: absolute; right: -3px; top: -4px; border: 5px solid transparent; border-left-color: var(--blue); }
+
+.env-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.env-flow .card { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.env-flow .card .n { font: 600 11px var(--mono); color: var(--purple-soft); letter-spacing: .08em; text-transform: uppercase; }
+.env-flow .card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* ══ Fullstack ════════════════════════════ */
+.nav { gap: 20px; }
+.nav-groups li a { padding: 6px 10px; }
+.nav-groups { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.1) transparent; }
+.nav-label, .band-label {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 0 10px;
+  font: 700 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--c, var(--purple-soft));
+}
+.nav-label i, .band-label i { width: 7px; height: 7px; border-radius: 2px; background: var(--c, var(--purple)); box-shadow: 0 0 10px var(--c, var(--purple)); flex: none; }
+.nav-label small, .band-label small { font: 500 10.5px var(--mono); letter-spacing: .04em; text-transform: none; color: var(--faint); margin-left: auto; }
+.nav-sep { height: 1px; margin: 0 10px; background: linear-gradient(90deg, transparent, var(--line-2), transparent); flex: none; }
+.g-be { --c: var(--purple-soft); }
+.g-fe { --c: var(--blue-soft); }
+.g-be .nav-label i, .band.g-be .band-label i { background: var(--purple); box-shadow: 0 0 10px var(--purple); }
+.g-fe .nav-label i, .band.g-fe .band-label i { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+.g-fe .nav li a.active, .nav .g-fe li a.active { background: rgba(59, 130, 246, 0.14); box-shadow: inset 2px 0 0 var(--blue); }
+.nav .g-fe li a.active::before { color: var(--blue-soft); }
+
+.band { display: flex; align-items: center; gap: 18px; padding-top: 88px; }
+.band::before, .band::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c) 55%, transparent)); }
+.band::after { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, transparent), transparent); }
+.band .band-label {
+  margin: 0; padding: 9px 16px; font-size: 13px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); background: color-mix(in srgb, var(--c) 8%, var(--panel));
+}
+.band .band-label small { font-size: 12px; margin-left: 4px; }
+
+.hero-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.hero-row .nav-label { margin: 0 6px 0 0; padding: 0; min-width: 92px; }
+.hero-block { margin-bottom: 28px; }
+.stat-group { margin-bottom: 14px; }
+.stat-group .nav-label { padding: 0; margin-bottom: 10px; }
+.stats { margin-bottom: 0; }
+.stats.s5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.repo { display: flex; flex-direction: column; gap: 10px; }
+.repo p { margin: 0; font-size: 14px; color: var(--muted); }
+.repo a.jump { font: 600 13px var(--mono); margin-top: auto; }
+td.warn { color: var(--amber); }
+.pill { font: 11.5px var(--mono); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line-2); color: var(--muted); white-space: nowrap; display: inline-block; }
+.pill.ok { color: #6ee7b7; border-color: rgba(52, 211, 153, 0.35); }
+.pill.miss { color: var(--amber); border-color: rgba(251, 191, 36, 0.35); }
+.pill.off { color: var(--faint); }
+
+.tree { overflow-x: auto; }
+@media (max-width: 1100px) {
+  .stats.s5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .env-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .nav-groups { flex-direction: row; align-items: center; overflow-x: auto; overflow-y: visible; gap: 10px; min-width: 0; scrollbar-width: none; }
+  .nav-group { display: flex; align-items: center; gap: 4px; flex: none; }
+  .nav-groups .nav-label { margin: 0; padding: 0 4px 0 0; white-space: nowrap; }
+  .nav-groups .nav-label small { display: none; }
+  .nav .nav-groups ol { overflow: visible; }
+  .nav-sep { width: 1px; height: 22px; margin: 0 4px; background: var(--line-2); }
+  .g-fe .nav li a.active, .nav .g-fe li a.active { box-shadow: inset 0 -2px 0 var(--blue); }
+  .band { padding-top: 64px; gap: 10px; }
+  .band .band-label { white-space: normal; text-align: center; }
+  .stats.s5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero-row .nav-label { min-width: 0; width: 100%; }
+  .env-flow { grid-template-columns: 1fr; }
+  .tree .trow { grid-template-columns: 1fr; gap: 0; padding: 4px 0; }
+}
+
+.cdiagram { padding: 16px; overflow-x: auto; }
+.cdiagram-svg { display: block; width: 100%; max-width: 800px; height: auto; margin: 0 auto; }
+@media (max-width: 700px) { .cdiagram-svg { min-width: 640px; } }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Secciones">
+  <a class="brand" href="#top" style="text-decoration:none;color:inherit">
+    <div class="brand-logo">CQ</div>
+    <div><b>Code Quest 2026</b><span>Fullstack · arquitectura</span></div>
+  </a>
+  <div class="nav-groups">
+    <div class="nav-group g-be">
+      <p class="nav-label"><i></i>Backend <small>NestJS</small></p>
+      <ol>
+      <li><a href="#be-overview">Overview</a></li>
+      <li><a href="#be-arquitectura">Arquitectura</a></li>
+      <li><a href="#be-stack">Stack</a></li>
+      <li><a href="#be-modulos">Módulos</a></li>
+      <li><a href="#be-api">API</a></li>
+      <li><a href="#be-db">Base de datos</a></li>
+      <li><a href="#be-migraciones">Migraciones</a></li>
+      <li><a href="#be-env">Variables</a></li>
+      <li><a href="#be-cicd">CI/CD</a></li>
+      <li><a href="#be-costos">Costos</a></li>
+      </ol>
+    </div>
+    <div class="nav-sep" role="separator"></div>
+    <div class="nav-group g-fe">
+      <p class="nav-label"><i></i>Frontend <small>React</small></p>
+      <ol>
+      <li><a href="#fe-overview">Overview</a></li>
+      <li><a href="#fe-stack">Stack</a></li>
+      <li><a href="#fe-arquitectura">Arquitectura</a></li>
+      <li><a href="#fe-componentes">Componentes</a></li>
+      <li><a href="#fe-galaxy">Galaxy 3D</a></li>
+      <li><a href="#fe-rutas">Páginas y rutas</a></li>
+      <li><a href="#fe-cicd">CI/CD</a></li>
+      <li><a href="#fe-env">Variables</a></li>
+      </ol>
+    </div>
+  </div>
+  <div class="nav-foot"><span class="dot"></span>backend + frontend · <code>main</code></div>
+</nav>
+
+<main>
+
+<section id="top" class="hero">
+  <p class="eyebrow">DevTalles · CQ03-2026</p>
+  <h1>Code Quest 2026 <span class="grad">Fullstack</span></h1>
+  <p class="lead">Generador de rutas de aprendizaje de la comunidad DevTalles. Esta página reúne la arquitectura de los dos repositorios: la <strong>API REST en NestJS</strong> que autentica, sirve el catálogo como galaxia y evalúa habilidades, y la <strong>SPA en React</strong> que la recorre como un mapa galáctico 3D con Three.js.</p>
+
+  <div class="hero-block">
+    <div class="hero-row g-be"><p class="nav-label"><i></i>Backend</p><span class="badge" style="--c:#e0234e"><i></i>NestJS 12</span>
+    <span class="badge" style="--c:#3178c6"><i></i>TypeScript 6</span>
+    <span class="badge" style="--c:#fe0803"><i></i>TypeORM 0.3</span>
+    <span class="badge" style="--c:#4169e1"><i></i>PostgreSQL 17</span>
+    <span class="badge" style="--c:#5865f2"><i></i>Discord OAuth2</span>
+    <span class="badge" style="--c:#a78bfa"><i></i>JWT</span>
+    <span class="badge" style="--c:#2496ed"><i></i>Docker</span>
+    <span class="badge" style="--c:#0080ff"><i></i>DigitalOcean</span>
+    <span class="badge" style="--c:#85ea2d"><i></i>Swagger /docs</span></div>
+    <div class="hero-row g-fe"><p class="nav-label"><i></i>Frontend</p><span class="badge" style="--c:#61dafb"><i></i>React 18.3</span>
+    <span class="badge" style="--c:var(--blue)"><i></i>TypeScript 5.7</span>
+    <span class="badge" style="--c:#a78bfa"><i></i>Vite 5.4</span>
+    <span class="badge" style="--c:#e5e7eb"><i></i>Three.js 0.186</span>
+    <span class="badge" style="--c:#38bdf8"><i></i>Tailwind CSS 3.4</span>
+    <span class="badge" style="--c:#f87171"><i></i>React Router 6.28</span>
+    <span class="badge" style="--c:var(--amber)"><i></i>Zustand 4.5</span>
+    <span class="badge" style="--c:#2496ed"><i></i>Docker + Nginx</span></div>
+  </div>
+
+  <div class="hero-block">
+    <div class="stat-group g-be"><p class="nav-label"><i></i>Backend</p><div class="stats">
+    <div class="card stat"><b>5</b><span>módulos de dominio</span></div>
+    <div class="card stat"><b id="stat-endpoints">—</b><span>endpoints REST</span></div>
+    <div class="card stat"><b>13</b><span>tablas en PostgreSQL</span></div>
+    <div class="card stat"><b>18</b><span>migraciones TypeORM</span></div>
+    </div></div>
+    <div class="stat-group g-fe"><p class="nav-label"><i></i>Frontend</p><div class="stats s5">
+      <div class="card stat"><b>22</b><span>componentes en <code>src/components</code></span></div>
+    <div class="card stat"><b>9</b><span>rutas en React Router</span></div>
+    <div class="card stat"><b>6</b><span>módulos en <code>lib/galaxy</code></span></div>
+    <div class="card stat"><b>7</b><span>texturas procedurales de planeta</span></div>
+    <div class="card stat"><b>2 500</b><span>estrellas en el fondo 3D</span></div>
+    </div></div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card repo g-be"><p class="nav-label" style="padding:0;margin:0"><i></i>codequest-backend</p><p>NestJS + TypeORM sobre PostgreSQL. Expone <code>/api/v1</code> en el puerto 3000 (3001 en Docker Compose) y documenta la API con Swagger en <code>/docs</code>.</p><a class="jump" href="#be-overview">Ir al backend →</a></div>
+    <div class="card repo g-fe"><p class="nav-label" style="padding:0;margin:0"><i></i>codequest-frontend</p><p>React + Vite en el puerto 5173. Consume la API a través de <code>VITE_API_URL</code>, que se incrusta en el bundle al construir la imagen Docker.</p><a class="jump" href="#fe-overview">Ir al frontend →</a></div>
+  </div>
+</section>
+
+<div class="band g-be" role="separator"><p class="band-label"><i></i>Backend <small>— NestJS + PostgreSQL</small></p></div>
+
+<section id="be-overview">
+  <p class="eyebrow">Backend · Overview</p>
+  <h2>API REST de Code Quest 2026</h2>
+  <p class="lead">API REST modular del <strong>Generador de Rutas de Aprendizaje</strong> de la comunidad DevTalles. Autentica usuarios con Discord o email, expone el catálogo de cursos como una galaxia 3D, evalúa habilidades y genera rutas de aprendizaje personalizadas.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-bottom:14px">Qué hace la API</h3>
+      <ul class="checks">
+        <li><span>Autentica con <strong>Discord OAuth2</strong> o con <strong>email + contraseña</strong>, y emite tokens <strong>JWT</strong>.</span></li>
+        <li><span>Sirve el catálogo de <strong>cursos de DevTalles</strong>, agrupado en galaxias con prerrequisitos y cursos relacionados.</span></li>
+        <li><span>Registra el <strong>progreso por lección y curso</strong>, además de la racha de estudio.</span></li>
+        <li><span>Evalúa habilidades con <strong>cuestionarios</strong> y calcula el nivel de cada skill.</span></li>
+        <li><span>Genera y guarda <strong>rutas de aprendizaje</strong>, y responde preguntas con el agente <strong>Devi</strong>.</span></li>
+      </ul>
+    </div>
+    <div class="steps">
+      <div class="card step">
+        <h3>Clonar y configurar el entorno</h3>
+<pre><span class="k">git</span> clone https://github.com/maycolroa/codequest-backend.git
+<span class="k">cd</span> codequest-backend
+<span class="k">cp</span> .env.example .env</pre>
+        <p>Rellena <code>JWT_SECRET</code>, <code>DISCORD_CLIENT_ID</code>/<code>SECRET</code>, <code>DISCORD_CALLBACK_URL</code> y las variables <code>POSTGRES_*</code>.</p>
+      </div>
+      <div class="card step">
+        <h3>Levantar la API y PostgreSQL</h3>
+<pre><span class="c"># codequest-api-dev + codequest-postgres-dev</span>
+<span class="k">docker</span> compose up --build -d</pre>
+      </div>
+      <div class="card step">
+        <h3>Ejecutar las migraciones</h3>
+<pre><span class="k">docker</span> compose exec api npm run migration:run</pre>
+        <p>Swagger UI queda en <a href="http://localhost:3001/docs">localhost:3001/docs</a>. La API escucha en el puerto 3000 del contenedor, publicado en el 3001.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="be-arquitectura">
+  <p class="eyebrow">Arquitectura</p>
+  <h2>Vista de componentes</h2>
+  <p class="lead">El frontend llama a la API NestJS con el prefijo <code>/api/v1</code>. TypeORM persiste las entidades en PostgreSQL gestionado de DigitalOcean. El código se publica como imagen Docker en el Container Registry.</p>
+
+  <div class="card diagram">
+    <div class="diagram-scroll">
+<svg viewBox="0 30 1300 620" role="img" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
+        <title id="archify-diagram-title">Code Quest 2026 — Backend</title>
+        <desc id="archify-diagram-description">Diagrama de componentes del backend: frontend, módulos NestJS, entidades, TypeORM, PostgreSQL y pipeline de despliegue.</desc>
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect y="30" width="1300" height="620" fill="url(#grid)" />
+
+        <!-- Boundaries (behind everything) -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="NestJS API · /api/v1" x="250" y="170" width="740" height="314" rx="12" class="c-region" stroke-width="1"/>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" data-composition-frame-label="DigitalOcean" x="1020" y="270" width="240" height="364" rx="12" class="c-region" stroke-width="1"/>
+
+        <!-- Connection paths (before components for correct z-order) -->
+        <path data-edge-from="frontend" data-edge-to="auth" data-edge-label="login · register" data-edge-key="0" data-edge-id="fe-auth" data-composition-points="190,325;235,325;235,232;280,232" d="M 190 325 L 227 325 Q 235 325 235 317 L 235 240 Q 235 232 243 232 L 280 232" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="auth" data-edge-to="discord" data-edge-label="OAuth2 + callback" data-edge-key="1" data-edge-id="auth-discord" data-composition-points="360,200;360,124" d="M 360 200 L 360 124" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="frontend" data-edge-to="courses" data-edge-label="Bearer JWT" data-edge-key="2" data-edge-id="fe-courses" data-composition-points="190,339;235,339;235,432;280,432" d="M 190 339 L 227 339 Q 235 339 235 347 L 235 424 Q 235 432 243 432 L 280 432" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="auth" data-edge-to="profile" data-edge-label="upsert" data-edge-key="3" data-edge-id="auth-profile" data-composition-points="440,232;530,232" d="M 440 232 L 530 232" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="courses" data-edge-to="course" data-edge-label="query" data-edge-key="4" data-edge-id="courses-course" data-composition-points="440,432;530,432" d="M 440 432 L 530 432" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="profile" data-edge-to="typeorm" data-edge-key="5" data-edge-id="profile-orm" data-composition-points="680,232;735,232;735,325;790,325" d="M 680 232 L 727 232 Q 735 232 735 240 L 735 317 Q 735 325 743 325 L 790 325" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="course" data-edge-to="typeorm" data-edge-key="6" data-edge-id="course-orm" data-composition-points="720,432;755,432;755,339;790,339" d="M 720 432 L 747 432 Q 755 432 755 424 L 755 347 Q 755 339 763 339 L 790 339" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="typeorm" data-edge-to="postgres" data-edge-label="SQL · SSL" data-edge-key="7" data-edge-id="orm-pg" data-composition-points="960,332;1050,332" d="M 960 332 L 1050 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="gha" data-edge-to="registry" data-edge-label="docker push" data-edge-key="8" data-edge-id="gha-registry" data-composition-points="700,582;790,582" d="M 700 582 L 790 582" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="registry" data-edge-to="app" data-edge-label=":latest" data-edge-key="9" data-edge-id="registry-app" data-composition-points="980,582;1050,582" d="M 980 582 L 1050 582" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+
+        <!-- Components -->
+        <g id="node-frontend" data-node-id="frontend" data-node-label="Frontend" tabindex="0" role="button" aria-label="Focus Frontend, FRONTEND_URL · CORS, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="FRONTEND_URL · CORS" data-node-context="Architecture component">
+          <title>Frontend · FRONTEND_URL · CORS · Architecture component</title>
+          <rect x="40" y="300" width="150" height="64" rx="6" class="c-mask"/>
+          <rect x="40" y="300" width="150" height="64" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(46 306) scale(0.6875)">
+            <rect x="2" y="3" width="12" height="10" rx="2"/>
+            <path d="M2 6.5h12"/>
+            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
+            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="115" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Frontend</text>
+        <text data-detail="context" x="115" y="346" class="t-muted" font-size="9" text-anchor="middle">FRONTEND_URL · CORS</text>
+        </g>
+
+        <g id="node-discord" data-node-id="discord" data-node-label="Discord" tabindex="0" role="button" aria-label="Focus Discord, OAuth2 provider, Architecture component, Discord" aria-pressed="false" data-node-kind="external" data-node-sublabel="OAuth2 provider" data-node-context="Architecture component" data-node-brand="Discord" data-node-brand-id="discord" data-node-brand-status="preset" data-node-brand-source="https://discord.com/branding">
+          <title>Discord · OAuth2 provider · Architecture component · Discord</title>
+          <rect x="280" y="60" width="160" height="64" rx="6" class="c-mask"/>
+          <rect x="280" y="60" width="160" height="64" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(286 66) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <g aria-hidden="true" data-brand-mark="discord" data-brand-title="Discord" data-brand-status="preset" data-brand-source="https://discord.com/branding" class="brand-mark" transform="translate(418 66)">
+            <rect width="16" height="16" rx="4" class="brand-mark-badge"/>
+            <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z" transform="translate(3 3) scale(0.4166666666666667)" fill="#5865F2"/>
+            <rect width="16" height="16" rx="4" class="brand-mark-frame"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="360" y="90" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Discord</text>
+        <text data-detail="context" x="360" y="106" class="t-muted" font-size="9" text-anchor="middle">OAuth2 provider</text>
+        </g>
+
+        <g id="node-auth" data-node-id="auth" data-node-label="AuthModule" tabindex="0" role="button" aria-label="Focus AuthModule, /auth · Discord + local, NestJS API · /api/v1" aria-pressed="false" data-node-kind="security" data-node-sublabel="/auth · Discord + local" data-node-tag="Passport · JWT" data-node-context="NestJS API · /api/v1">
+          <title>AuthModule · /auth · Discord + local · NestJS API · /api/v1 · Passport · JWT</title>
+          <rect x="280" y="200" width="160" height="64" rx="6" class="c-mask"/>
+          <rect x="280" y="200" width="160" height="64" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(286 206) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="360" y="230" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">AuthModule</text>
+        <text data-detail="context" x="360" y="246" class="t-muted" font-size="9" text-anchor="middle">/auth · Discord + local</text>
+        <text data-detail="fine" x="360" y="256" class="t-security" font-size="7" text-anchor="middle">Passport · JWT</text>
+        </g>
+
+        <g id="node-courses" data-node-id="courses" data-node-label="CoursesModule" tabindex="0" role="button" aria-label="Focus CoursesModule, GET /courses/galaxy, NestJS API · /api/v1" aria-pressed="false" data-node-kind="backend" data-node-sublabel="GET /courses/galaxy" data-node-tag="JwtAuthGuard" data-node-context="NestJS API · /api/v1">
+          <title>CoursesModule · GET /courses/galaxy · NestJS API · /api/v1 · JwtAuthGuard</title>
+          <rect x="280" y="400" width="160" height="64" rx="6" class="c-mask"/>
+          <rect x="280" y="400" width="160" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(286 406) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="360" y="430" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">CoursesModule</text>
+        <text data-detail="context" x="360" y="446" class="t-muted" font-size="9" text-anchor="middle">GET /courses/galaxy</text>
+        <text data-detail="fine" x="360" y="456" class="t-backend" font-size="7" text-anchor="middle">JwtAuthGuard</text>
+        </g>
+
+        <g id="node-profile" data-node-id="profile" data-node-label="Profile" tabindex="0" role="button" aria-label="Focus Profile, entity · profiles, NestJS API · /api/v1" aria-pressed="false" data-node-kind="backend" data-node-sublabel="entity · profiles" data-node-context="NestJS API · /api/v1">
+          <title>Profile · entity · profiles · NestJS API · /api/v1</title>
+          <rect x="530" y="200" width="150" height="64" rx="6" class="c-mask"/>
+          <rect x="530" y="200" width="150" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(536 206) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="605" y="230" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Profile</text>
+        <text data-detail="context" x="605" y="246" class="t-muted" font-size="9" text-anchor="middle">entity · profiles</text>
+        </g>
+
+        <g id="node-course" data-node-id="course" data-node-label="Course" tabindex="0" role="button" aria-label="Focus Course, galaxies · prerequisites · related, NestJS API · /api/v1" aria-pressed="false" data-node-kind="backend" data-node-sublabel="galaxies · prerequisites · related" data-node-context="NestJS API · /api/v1">
+          <title>Course · galaxies · prerequisites · related · NestJS API · /api/v1</title>
+          <rect x="530" y="400" width="190" height="64" rx="6" class="c-mask"/>
+          <rect x="530" y="400" width="190" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(536 406) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="625" y="430" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Course</text>
+        <text data-detail="context" x="625" y="446" class="t-muted" font-size="8.9" text-anchor="middle">galaxies · prerequisites · related</text>
+        </g>
+
+        <g id="node-typeorm" data-node-id="typeorm" data-node-label="TypeORM" tabindex="0" role="button" aria-label="Focus TypeORM, migrations 0000 → 0015, NestJS API · /api/v1" aria-pressed="false" data-node-kind="backend" data-node-sublabel="migrations 0000 → 0015" data-node-tag="synchronize: false" data-node-context="NestJS API · /api/v1">
+          <title>TypeORM · migrations 0000 → 0015 · NestJS API · /api/v1 · synchronize: false</title>
+          <rect x="790" y="300" width="170" height="64" rx="6" class="c-mask"/>
+          <rect x="790" y="300" width="170" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(796 306) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="875" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">TypeORM</text>
+        <text data-detail="context" x="875" y="346" class="t-muted" font-size="9" text-anchor="middle">migrations 0000 → 0015</text>
+        <text data-detail="fine" x="875" y="356" class="t-backend" font-size="7" text-anchor="middle">synchronize: false</text>
+        </g>
+
+        <g id="node-postgres" data-node-id="postgres" data-node-label="PostgreSQL" tabindex="0" role="button" aria-label="Focus PostgreSQL, DigitalOcean Managed DB, DigitalOcean, PostgreSQL" aria-pressed="false" data-node-kind="database" data-node-sublabel="DigitalOcean Managed DB" data-node-context="DigitalOcean" data-node-brand="PostgreSQL" data-node-brand-id="postgresql" data-node-brand-status="preset" data-node-brand-source="https://wiki.postgresql.org/wiki/Logo">
+          <title>PostgreSQL · DigitalOcean Managed DB · DigitalOcean · PostgreSQL</title>
+          <rect x="1050" y="300" width="180" height="64" rx="6" class="c-mask"/>
+          <rect x="1050" y="300" width="180" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(1056 306) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <g aria-hidden="true" data-brand-mark="postgresql" data-brand-title="PostgreSQL" data-brand-status="preset" data-brand-source="https://wiki.postgresql.org/wiki/Logo" class="brand-mark" transform="translate(1208 306)">
+            <rect width="16" height="16" rx="4" class="brand-mark-badge"/>
+            <path d="M23.5594 14.7228a.5269.5269 0 0 0-.0563-.1191c-.139-.2632-.4768-.3418-1.0074-.2321-1.6533.3411-2.2935.1312-2.5256-.0191 1.342-2.0482 2.445-4.522 3.0411-6.8297.2714-1.0507.7982-3.5237.1222-4.7316a1.5641 1.5641 0 0 0-.1509-.235C21.6931.9086 19.8007.0248 17.5099.0005c-1.4947-.0158-2.7705.3461-3.1161.4794a9.449 9.449 0 0 0-.5159-.0816 8.044 8.044 0 0 0-1.3114-.1278c-1.1822-.0184-2.2038.2642-3.0498.8406-.8573-.3211-4.7888-1.645-7.2219.0788C.9359 2.1526.3086 3.8733.4302 6.3043c.0409.818.5069 3.334 1.2423 5.7436.4598 1.5065.9387 2.7019 1.4334 3.582.553.9942 1.1259 1.5933 1.7143 1.7895.4474.1491 1.1327.1441 1.8581-.7279.8012-.9635 1.5903-1.8258 1.9446-2.2069.4351.2355.9064.3625 1.39.3772a.0569.0569 0 0 0 .0004.0041 11.0312 11.0312 0 0 0-.2472.3054c-.3389.4302-.4094.5197-1.5002.7443-.3102.064-1.1344.2339-1.1464.8115-.0025.1224.0329.2309.0919.3268.2269.4231.9216.6097 1.015.6331 1.3345.3335 2.5044.092 3.3714-.6787-.017 2.231.0775 4.4174.3454 5.0874.2212.5529.7618 1.9045 2.4692 1.9043.2505 0 .5263-.0291.8296-.0941 1.7819-.3821 2.5557-1.1696 2.855-2.9059.1503-.8707.4016-2.8753.5388-4.1012.0169-.0703.0357-.1207.057-.1362.0007-.0005.0697-.0471.4272.0307a.3673.3673 0 0 0 .0443.0068l.2539.0223.0149.001c.8468.0384 1.9114-.1426 2.5312-.4308.6438-.2988 1.8057-1.0323 1.5951-1.6698zM2.371 11.8765c-.7435-2.4358-1.1779-4.8851-1.2123-5.5719-.1086-2.1714.4171-3.6829 1.5623-4.4927 1.8367-1.2986 4.8398-.5408 6.108-.13-.0032.0032-.0066.0061-.0098.0094-2.0238 2.044-1.9758 5.536-1.9708 5.7495-.0002.0823.0066.1989.0162.3593.0348.5873.0996 1.6804-.0735 2.9184-.1609 1.1504.1937 2.2764.9728 3.0892.0806.0841.1648.1631.2518.2374-.3468.3714-1.1004 1.1926-1.9025 2.1576-.5677.6825-.9597.5517-1.0886.5087-.3919-.1307-.813-.5871-1.2381-1.3223-.4796-.839-.9635-2.0317-1.4155-3.5126zm6.0072 5.0871c-.1711-.0428-.3271-.1132-.4322-.1772.0889-.0394.2374-.0902.4833-.1409 1.2833-.2641 1.4815-.4506 1.9143-1.0002.0992-.126.2116-.2687.3673-.4426a.3549.3549 0 0 0 .0737-.1298c.1708-.1513.2724-.1099.4369-.0417.156.0646.3078.26.3695.4752.0291.1016.0619.2945-.0452.4444-.9043 1.2658-2.2216 1.2494-3.1676 1.0128zm2.094-3.988-.0525.141c-.133.3566-.2567.6881-.3334 1.003-.6674-.0021-1.3168-.2872-1.8105-.8024-.6279-.6551-.9131-1.5664-.7825-2.5004.1828-1.3079.1153-2.4468.079-3.0586-.005-.0857-.0095-.1607-.0122-.2199.2957-.2621 1.6659-.9962 2.6429-.7724.4459.1022.7176.4057.8305.928.5846 2.7038.0774 3.8307-.3302 4.7363-.084.1866-.1633.3629-.2311.5454zm7.3637 4.5725c-.0169.1768-.0358.376-.0618.5959l-.146.4383a.3547.3547 0 0 0-.0182.1077c-.0059.4747-.054.6489-.115.8693-.0634.2292-.1353.4891-.1794 1.0575-.11 1.4143-.8782 2.2267-2.4172 2.5565-1.5155.3251-1.7843-.4968-2.0212-1.2217a6.5824 6.5824 0 0 0-.0769-.2266c-.2154-.5858-.1911-1.4119-.1574-2.5551.0165-.5612-.0249-1.9013-.3302-2.6462.0044-.2932.0106-.5909.019-.8918a.3529.3529 0 0 0-.0153-.1126 1.4927 1.4927 0 0 0-.0439-.208c-.1226-.4283-.4213-.7866-.7797-.9351-.1424-.059-.4038-.1672-.7178-.0869.067-.276.1831-.5875.309-.9249l.0529-.142c.0595-.16.134-.3257.213-.5012.4265-.9476 1.0106-2.2453.3766-5.1772-.2374-1.0981-1.0304-1.6343-2.2324-1.5098-.7207.0746-1.3799.3654-1.7088.5321a5.6716 5.6716 0 0 0-.1958.1041c.0918-1.1064.4386-3.1741 1.7357-4.4823a4.0306 4.0306 0 0 1 .3033-.276.3532.3532 0 0 0 .1447-.0644c.7524-.5706 1.6945-.8506 2.802-.8325.4091.0067.8017.0339 1.1742.081 1.939.3544 3.2439 1.4468 4.0359 2.3827.8143.9623 1.2552 1.9315 1.4312 2.4543-1.3232-.1346-2.2234.1268-2.6797.779-.9926 1.4189.543 4.1729 1.2811 5.4964.1353.2426.2522.4522.2889.5413.2403.5825.5515.9713.7787 1.2552.0696.087.1372.1714.1885.245-.4008.1155-1.1208.3825-1.0552 1.717-.0123.1563-.0423.4469-.0834.8148-.0461.2077-.0702.4603-.0994.7662zm.8905-1.6211c-.0405-.8316.2691-.9185.5967-1.0105a2.8566 2.8566 0 0 0 .135-.0406 1.202 1.202 0 0 0 .1342.103c.5703.3765 1.5823.4213 3.0068.1344-.2016.1769-.5189.3994-.9533.6011-.4098.1903-1.0957.333-1.7473.3636-.7197.0336-1.0859-.0807-1.1721-.151zm.5695-9.2712c-.0059.3508-.0542.6692-.1054 1.0017-.055.3576-.112.7274-.1264 1.1762-.0142.4368.0404.8909.0932 1.3301.1066.887.216 1.8003-.2075 2.7014a3.5272 3.5272 0 0 1-.1876-.3856c-.0527-.1276-.1669-.3326-.3251-.6162-.6156-1.1041-2.0574-3.6896-1.3193-4.7446.3795-.5427 1.3408-.5661 2.1781-.463zm.2284 7.0137a12.3762 12.3762 0 0 0-.0853-.1074l-.0355-.0444c.7262-1.1995.5842-2.3862.4578-3.4385-.0519-.4318-.1009-.8396-.0885-1.2226.0129-.4061.0666-.7543.1185-1.0911.0639-.415.1288-.8443.1109-1.3505.0134-.0531.0188-.1158.0118-.1902-.0457-.4855-.5999-1.938-1.7294-3.253-.6076-.7073-1.4896-1.4972-2.6889-2.0395.5251-.1066 1.2328-.2035 2.0244-.1859 2.0515.0456 3.6746.8135 4.8242 2.2824a.908.908 0 0 1 .0667.1002c.7231 1.3556-.2762 6.2751-2.9867 10.5405zm-8.8166-6.1162c-.025.1794-.3089.4225-.6211.4225a.5821.5821 0 0 1-.0809-.0056c-.1873-.026-.3765-.144-.5059-.3156-.0458-.0605-.1203-.178-.1055-.2844.0055-.0401.0261-.0985.0925-.1488.1182-.0894.3518-.1226.6096-.0867.3163.0441.6426.1938.6113.4186zm7.9305-.4114c.0111.0792-.049.201-.1531.3102-.0683.0717-.212.1961-.4079.2232a.5456.5456 0 0 1-.075.0052c-.2935 0-.5414-.2344-.5607-.3717-.024-.1765.2641-.3106.5611-.352.297-.0414.6111.0088.6356.1851z" transform="translate(3 3) scale(0.4166666666666667)" fill="#4169E1"/>
+            <rect width="16" height="16" rx="4" class="brand-mark-frame"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="1140" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PostgreSQL</text>
+        <text data-detail="context" x="1140" y="346" class="t-muted" font-size="9" text-anchor="middle">DigitalOcean Managed DB</text>
+        </g>
+
+        <g id="node-gha" data-node-id="gha" data-node-label="GitHub Actions" tabindex="0" role="button" aria-label="Focus GitHub Actions, push a main, Architecture component, GitHub Actions" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="push a main" data-node-context="Architecture component" data-node-brand="GitHub Actions" data-node-brand-id="github-actions" data-node-brand-status="preset" data-node-brand-source="https://github.com/features/actions">
+          <title>GitHub Actions · push a main · Architecture component · GitHub Actions</title>
+          <rect x="530" y="550" width="170" height="64" rx="6" class="c-mask"/>
+          <rect x="530" y="550" width="170" height="64" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(536 556) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <g aria-hidden="true" data-brand-mark="github-actions" data-brand-title="GitHub Actions" data-brand-status="preset" data-brand-source="https://github.com/features/actions" class="brand-mark" transform="translate(678 556)">
+            <rect width="16" height="16" rx="4" class="brand-mark-badge"/>
+            <path d="M10.984 13.836a.5.5 0 0 1-.353-.146l-.745-.743a.5.5 0 1 1 .706-.708l.392.391 1.181-1.18a.5.5 0 0 1 .708.707l-1.535 1.533a.504.504 0 0 1-.354.146zm9.353-.147l1.534-1.532a.5.5 0 0 0-.707-.707l-1.181 1.18-.392-.391a.5.5 0 1 0-.706.708l.746.743a.497.497 0 0 0 .706-.001zM4.527 7.452l2.557-1.585A1 1 0 0 0 7.09 4.17L4.533 2.56A1 1 0 0 0 3 3.406v3.196a1.001 1.001 0 0 0 1.527.85zm2.03-2.436L4 6.602V3.406l2.557 1.61zM24 12.5c0 1.93-1.57 3.5-3.5 3.5a3.503 3.503 0 0 1-3.46-3h-2.08a3.503 3.503 0 0 1-3.46 3 3.502 3.502 0 0 1-3.46-3h-.558c-.972 0-1.85-.399-2.482-1.042V17c0 1.654 1.346 3 3 3h.04c.244-1.693 1.7-3 3.46-3 1.93 0 3.5 1.57 3.5 3.5S13.43 24 11.5 24a3.502 3.502 0 0 1-3.46-3H8c-2.206 0-4-1.794-4-4V9.899A5.008 5.008 0 0 1 0 5c0-2.757 2.243-5 5-5s5 2.243 5 5a5.005 5.005 0 0 1-4.952 4.998A2.482 2.482 0 0 0 7.482 12h.558c.244-1.693 1.7-3 3.46-3a3.502 3.502 0 0 1 3.46 3h2.08a3.503 3.503 0 0 1 3.46-3c1.93 0 3.5 1.57 3.5 3.5zm-15 8c0 1.378 1.122 2.5 2.5 2.5s2.5-1.122 2.5-2.5-1.122-2.5-2.5-2.5S9 19.122 9 20.5zM5 9c2.206 0 4-1.794 4-4S7.206 1 5 1 1 2.794 1 5s1.794 4 4 4zm9 3.5c0-1.378-1.122-2.5-2.5-2.5S9 11.122 9 12.5s1.122 2.5 2.5 2.5 2.5-1.122 2.5-2.5zm9 0c0-1.378-1.122-2.5-2.5-2.5S18 11.122 18 12.5s1.122 2.5 2.5 2.5 2.5-1.122 2.5-2.5zm-13 8a.5.5 0 1 0 1 0 .5.5 0 0 0-1 0zm2 0a.5.5 0 1 0 1 0 .5.5 0 0 0-1 0zm12 0c0 1.93-1.57 3.5-3.5 3.5a3.503 3.503 0 0 1-3.46-3.002c-.007.001-.013.005-.021.005l-.506.017h-.017a.5.5 0 0 1-.016-.999l.506-.017c.018-.002.035.006.052.007A3.503 3.503 0 0 1 20.5 17c1.93 0 3.5 1.57 3.5 3.5zm-1 0c0-1.378-1.122-2.5-2.5-2.5S18 19.122 18 20.5s1.122 2.5 2.5 2.5 2.5-1.122 2.5-2.5z" transform="translate(3 3) scale(0.4166666666666667)" fill="#2088FF"/>
+            <rect width="16" height="16" rx="4" class="brand-mark-frame"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="615" y="580" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">GitHub Actions</text>
+        <text data-detail="context" x="615" y="596" class="t-muted" font-size="9" text-anchor="middle">push a main</text>
+        </g>
+
+        <g id="node-registry" data-node-id="registry" data-node-label="DO Container Registry" tabindex="0" role="button" aria-label="Focus DO Container Registry, codequest/backend, Architecture component, DigitalOcean" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="codequest/backend" data-node-context="Architecture component" data-node-brand="DigitalOcean" data-node-brand-id="digitalocean" data-node-brand-status="preset" data-node-brand-source="https://www.digitalocean.com/press/">
+          <title>DO Container Registry · codequest/backend · Architecture component · DigitalOcean</title>
+          <rect x="790" y="550" width="190" height="64" rx="6" class="c-mask"/>
+          <rect x="790" y="550" width="190" height="64" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(796 556) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <g aria-hidden="true" data-brand-mark="digitalocean" data-brand-title="DigitalOcean" data-brand-status="preset" data-brand-source="https://www.digitalocean.com/press/" class="brand-mark" transform="translate(958 556)">
+            <rect width="16" height="16" rx="4" class="brand-mark-badge"/>
+            <path d="M12.04 0C5.408-.02.005 5.37.005 11.992h4.638c0-4.923 4.882-8.731 10.064-6.855a6.95 6.95 0 014.147 4.148c1.889 5.177-1.924 10.055-6.84 10.064v-4.61H7.391v4.623h4.61V24c7.86 0 13.967-7.588 11.397-15.83-1.115-3.59-3.985-6.446-7.575-7.575A12.8 12.8 0 0012.039 0zM7.39 19.362H3.828v3.564H7.39zm-3.563 0v-2.978H.85v2.978z" transform="translate(3 3) scale(0.4166666666666667)" fill="#0080FF"/>
+            <rect width="16" height="16" rx="4" class="brand-mark-frame"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="885" y="580" class="t-primary" font-size="10.6" font-weight="600" text-anchor="middle">DO Container Registry</text>
+        <text data-detail="context" x="885" y="596" class="t-muted" font-size="9" text-anchor="middle">codequest/backend</text>
+        </g>
+
+        <g id="node-app" data-node-id="app" data-node-label="App Platform" tabindex="0" role="button" aria-label="Focus App Platform, contenedor NestJS, DigitalOcean, DigitalOcean" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="contenedor NestJS" data-node-context="DigitalOcean" data-node-brand="DigitalOcean" data-node-brand-id="digitalocean" data-node-brand-status="preset" data-node-brand-source="https://www.digitalocean.com/press/">
+          <title>App Platform · contenedor NestJS · DigitalOcean · DigitalOcean</title>
+          <rect x="1050" y="550" width="180" height="64" rx="6" class="c-mask"/>
+          <rect x="1050" y="550" width="180" height="64" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(1056 556) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <g aria-hidden="true" data-brand-mark="digitalocean" data-brand-title="DigitalOcean" data-brand-status="preset" data-brand-source="https://www.digitalocean.com/press/" class="brand-mark" transform="translate(1208 556)">
+            <rect width="16" height="16" rx="4" class="brand-mark-badge"/>
+            <path d="M12.04 0C5.408-.02.005 5.37.005 11.992h4.638c0-4.923 4.882-8.731 10.064-6.855a6.95 6.95 0 014.147 4.148c1.889 5.177-1.924 10.055-6.84 10.064v-4.61H7.391v4.623h4.61V24c7.86 0 13.967-7.588 11.397-15.83-1.115-3.59-3.985-6.446-7.575-7.575A12.8 12.8 0 0012.039 0zM7.39 19.362H3.828v3.564H7.39zm-3.563 0v-2.978H.85v2.978z" transform="translate(3 3) scale(0.4166666666666667)" fill="#0080FF"/>
+            <rect width="16" height="16" rx="4" class="brand-mark-frame"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="1140" y="580" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">App Platform</text>
+        <text data-detail="context" x="1140" y="596" class="t-muted" font-size="9" text-anchor="middle">contenedor NestJS</text>
+        </g>
+
+        <!-- Connection labels -->
+        <g data-detail="context" data-edge-from="frontend" data-edge-to="auth" data-edge-label="login · register" data-edge-key="0" data-edge-id="fe-auth">
+          <rect x="191.6" y="258.5" width="86.8" height="14" rx="3" class="c-mask"/>
+          <text x="235" y="268.5" class="t-backend" font-size="8" text-anchor="middle">login · register</text>
+        </g>
+        <g data-detail="context" data-edge-from="auth" data-edge-to="discord" data-edge-label="OAuth2 + callback" data-edge-key="1" data-edge-id="auth-discord">
+          <rect x="404.2" y="180" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="450" y="190" class="t-security" font-size="8" text-anchor="middle">OAuth2 + callback</text>
+        </g>
+        <g data-detail="context" data-edge-from="frontend" data-edge-to="courses" data-edge-label="Bearer JWT" data-edge-key="2" data-edge-id="fe-courses">
+          <rect x="206" y="365.5" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="235" y="375.5" class="t-muted" font-size="8" text-anchor="middle">Bearer JWT</text>
+        </g>
+        <g data-detail="context" data-edge-from="auth" data-edge-to="profile" data-edge-label="upsert" data-edge-key="3" data-edge-id="auth-profile">
+          <rect x="465.6" y="212" width="38.8" height="14" rx="3" class="c-mask"/>
+          <text x="485" y="222" class="t-muted" font-size="8" text-anchor="middle">upsert</text>
+        </g>
+        <g data-detail="context" data-edge-from="courses" data-edge-to="course" data-edge-label="query" data-edge-key="4" data-edge-id="courses-course">
+          <rect x="468" y="412" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="485" y="422" class="t-muted" font-size="8" text-anchor="middle">query</text>
+        </g>
+
+
+        <g data-detail="context" data-edge-from="typeorm" data-edge-to="postgres" data-edge-label="SQL · SSL" data-edge-key="7" data-edge-id="orm-pg">
+          <rect x="978.4" y="312" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="1005" y="322" class="t-backend" font-size="8" text-anchor="middle">SQL · SSL</text>
+        </g>
+        <g data-detail="context" data-edge-from="gha" data-edge-to="registry" data-edge-label="docker push" data-edge-key="8" data-edge-id="gha-registry">
+          <rect x="713.6" y="562" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="745" y="572" class="t-muted" font-size="8" text-anchor="middle">docker push</text>
+        </g>
+        <g data-detail="context" data-edge-from="registry" data-edge-to="app" data-edge-label=":latest" data-edge-key="9" data-edge-id="registry-app">
+          <rect x="993.2" y="562" width="43.6" height="14" rx="3" class="c-mask"/>
+          <text x="1015" y="572" class="t-messagebus" font-size="8" text-anchor="middle">:latest</text>
+        </g>
+
+        <!-- Boundary labels (foreground masks keep routes out of titles) -->
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="NestJS API · /api/v1">
+          <rect data-graph-role="structural-frame-label-mask" x="254" y="180" width="118" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="258" y="193" class="t-cloud" font-size="9" font-weight="600">NestJS API · /api/v1</text>
+        </g>
+
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="region" data-composition-frame-label="DigitalOcean">
+          <rect data-graph-role="structural-frame-label-mask" x="1024" y="280" width="74.8" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="1028" y="293" class="t-cloud" font-size="9" font-weight="600">DigitalOcean</text>
+        </g>
+      </svg>
+    </div>
+    <div class="legend">
+      <span style="--c:var(--blue)"><i></i>Frontend</span>
+      <span style="--c:var(--purple)"><i></i>Backend / entidad</span>
+      <span style="--c:var(--rose)"><i></i>Seguridad</span>
+      <span style="--c:var(--cyan)"><i></i>Base de datos</span>
+      <span style="--c:#818cf8"><i></i>Cloud</span>
+      <span style="--c:#94a3b8"><i></i>Externo</span>
+      <span class="hint">Pasa el cursor sobre un componente para ver sus conexiones</span>
+    </div>
+  </div>
+
+  <div class="grid g3 flows">
+    <div class="card flow" style="--c:var(--rose)">
+      <h3><i></i>Discord OAuth2</h3>
+      <ol>
+        <li>El frontend abre <code>GET /auth/discord</code>.</li>
+        <li>Passport redirige a discord.com/oauth2.</li>
+        <li>Discord vuelve a <code>/auth/discord/callback</code> con el <code>code</code>.</li>
+        <li><code>DiscordStrategy</code> hace upsert del <code>Profile</code>.</li>
+        <li>La API redirige a <code>FRONTEND_URL/auth/callback?token=&lt;JWT&gt;</code>.</li>
+      </ol>
+    </div>
+    <div class="card flow" style="--c:var(--purple)">
+      <h3><i></i>Autenticación local</h3>
+      <ol>
+        <li><code>POST /auth/register</code> crea el perfil con <code>password_hash</code>.</li>
+        <li><code>POST /auth/login</code> valida las credenciales.</li>
+        <li>La respuesta incluye el JWT firmado.</li>
+        <li>Las peticiones siguientes envían <code>Authorization: Bearer</code>.</li>
+        <li><code>JwtStrategy</code> resuelve el usuario en <code>GET /auth/me</code>.</li>
+      </ol>
+    </div>
+    <div class="card flow" style="--c:var(--blue)">
+      <h3><i></i>Galaxia de cursos</h3>
+      <ol>
+        <li>El frontend pide <code>GET /courses/galaxy</code> con el JWT.</li>
+        <li><code>JwtAuthGuard</code> protege todo el controlador.</li>
+        <li><code>CoursesService</code> lee los cursos activos.</li>
+        <li>Devuelve <code>galaxies</code>, <code>galaxy_color</code>, <code>position_x/y/z</code>.</li>
+        <li>Incluye <code>prerequisites</code> y <code>related</code> para dibujar las aristas.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section id="be-stack">
+  <p class="eyebrow">Tecnologías</p>
+  <h2>Stack Técnico</h2>
+  <p class="lead">Versiones tomadas de <code>package.json</code>, del <code>Dockerfile</code> y de <code>docker-compose.yml</code>.</p>
+  <div class="grid stack" id="stack-grid"></div>
+</section>
+
+<section id="be-modulos">
+  <p class="eyebrow">NestJS</p>
+  <h2>Módulos</h2>
+  <p class="lead"><code>AppModule</code> carga la configuración global y TypeORM de forma asíncrona (<code>autoLoadEntities</code>, <code>synchronize: false</code>, SSL), e importa cinco módulos de dominio.</p>
+  <div class="grid g3" id="modules"></div>
+</section>
+
+<section id="be-api">
+  <p class="eyebrow">REST · /api/v1</p>
+  <h2>API Endpoints</h2>
+  <p class="lead">Todas las rutas llevan el prefijo global <code>/api/v1</code>. Las rutas con <code>:profileId</code> comprueban que el perfil coincide con el del JWT. Las marcadas como <span class="auth sa">superadmin</span> requieren <code>SuperAdminGuard</code>.</p>
+  <div class="api-tools">
+    <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Filtrar por ruta, método o descripción…" aria-label="Filtrar endpoints"></label>
+    <div class="tabs" id="tabs" role="group" aria-label="Filtrar por módulo"></div>
+  </div>
+  <div class="card api" id="api"></div>
+  <div class="card empty" id="api-empty">Ningún endpoint coincide con el filtro.</div>
+</section>
+
+<section id="be-db">
+  <p class="eyebrow">PostgreSQL 17 · TypeORM</p>
+  <h2>Base de Datos</h2>
+  <p class="lead">PostgreSQL gestionado por DigitalOcean, conectado mediante <code>DATABASE_URL</code> con <code>ssl.rejectUnauthorized: false</code>. El esquema se crea solo con migraciones, nunca con <code>synchronize</code>.</p>
+
+  <h3 class="sub">Esquema de tablas</h3>
+  <div class="key-legend"><span style="--c:var(--amber)">PK</span><span style="--c:var(--blue-soft)">FK</span><span style="--c:var(--purple-soft)">campos de galaxia</span></div>
+  <div class="grid tables" id="tables"></div>
+</section>
+
+<section id="be-migraciones">
+  <p class="eyebrow">TypeORM</p>
+  <h2>Migraciones</h2>
+  <p class="lead">Migraciones definidas en el repositorio, en orden de timestamp. Se ejecutan con <code>npm run migration:run</code>; las resaltadas son las que construyen el catálogo, las galaxias y los cuestionarios.</p>
+  <div class="timeline" id="migrations"></div>
+
+</section>
+
+<section id="be-env">
+  <p class="eyebrow">.env · ConfigService</p>
+  <h2>Variables de entorno</h2>
+  <p class="lead">Variables de <code>.env.example</code> cruzadas con las que lee el código (<code>process.env</code> y <code>ConfigService</code>). El workflow de despliegue no pasa ninguna variable a la imagen: en producción se configuran en la app de App Platform y se leen en runtime.</p>
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Variable</th><th>Ejemplo local</th><th>Estado</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td class="route">PORT</td><td class="ver">3000</td><td><span class="pill ok">en uso</span></td><td><code>main.ts</code>: <code>app.listen(process.env.PORT ?? 3000)</code></td></tr>
+        <tr><td class="route">API_PORT</td><td class="ver">3001</td><td><span class="pill ok">compose</span></td><td>Puerto publicado por <code>docker-compose.yml</code> (<code>${API_PORT:-3001}:3000</code>) para no chocar con Nest en local</td></tr>
+        <tr><td class="route">NODE_ENV</td><td class="ver">development</td><td><span class="pill ok">en uso</span></td><td><code>data-source.ts</code>: activa SSL (<code>rejectUnauthorized: false</code>) en <code>production</code></td></tr>
+        <tr><td class="route">FRONTEND_URL</td><td class="ver">http://localhost:5173</td><td><span class="pill ok">en uso</span></td><td>Origen de CORS en <code>main.ts</code> y destino del redirect <code>/auth/callback?token=</code> tras Discord</td></tr>
+        <tr><td class="route">DATABASE_URL</td><td class="ver">postgresql://…/codequest</td><td><span class="pill ok">obligatoria</span></td><td><code>database.config.ts</code> (<code>getOrThrow</code>) y el data source de las migraciones</td></tr>
+        <tr><td class="route">POSTGRES_USER · _PASSWORD · _DB</td><td class="ver">postgres · postgres · codequest</td><td><span class="pill ok">compose</span></td><td>Contenedor <code>postgres</code> de desarrollo y el <code>DATABASE_URL</code> que Compose arma para la API</td></tr>
+        <tr><td class="route">JWT_SECRET</td><td class="ver">string aleatorio largo</td><td><span class="pill ok">en uso</span></td><td>Firma y verificación de tokens (<code>JwtModule</code>, <code>JwtStrategy</code>)</td></tr>
+        <tr><td class="route">JWT_EXPIRES_IN</td><td class="ver">7d</td><td><span class="pill ok">en uso</span></td><td><code>auth.module.ts</code>; <code>7d</code> por defecto</td></tr>
+        <tr><td class="route">DISCORD_CLIENT_ID · _SECRET</td><td class="ver">credenciales de la app</td><td><span class="pill ok">en uso</span></td><td><code>DiscordStrategy</code> (passport-discord)</td></tr>
+        <tr><td class="route">DISCORD_CALLBACK_URL</td><td class="ver">…/api/v1/auth/discord/callback</td><td><span class="pill ok">en uso</span></td><td>URL de retorno registrada en el portal de Discord</td></tr>
+        <tr><td class="route">OPENAI_API_KEY · OPENAI_AGENT_ID</td><td class="warn">— (no están en .env.example)</td><td><span class="pill miss">falta en ejemplo</span></td><td><code>devi.service.ts</code>: obligatorias; sin ellas el servicio de Devi lanza un error al crearse</td></tr>
+        <tr><td class="route">DEVTALLES_GUILD_ID</td><td class="ver">1130900724499365958</td><td><span class="pill off">sin uso</span></td><td>Declarada en <code>.env.example</code>; ningún archivo de <code>src/</code> la lee</td></tr>
+        <tr><td class="route">ANTHROPIC_API_KEY</td><td class="ver">sk-ant-…</td><td><span class="pill off">sin uso</span></td><td>Declarada en <code>.env.example</code>; resto del <code>AiModule</code> que no existe en el código</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<section id="be-cicd">
+  <p class="eyebrow">.github/workflows/deploy.yml</p>
+  <h2>CI/CD</h2>
+  <p class="lead">Cada push a <code>main</code> dispara el workflow <em>Build &amp; Deploy Backend</em>, que construye la imagen con el Dockerfile multi-stage y la publica en DigitalOcean Container Registry.</p>
+  <div class="pipeline">
+    <div class="card stage"><span class="n">01 · trigger</span><h3>git push → main</h3><p>Cualquier push o merge de PR a la rama <code>main</code>.</p><div class="pulse"></div></div>
+    <div class="card stage"><span class="n">02 · runner</span><h3>GitHub Actions</h3><p><code>ubuntu-latest</code> · checkout · <code>doctl</code> · <code>registry login</code></p><div class="pulse" style="--d:.4s"></div></div>
+    <div class="card stage"><span class="n">03 · build</span><h3>Docker build</h3><p>Stage <code>production</code> sobre <code>node:22.22.3-alpine</code>, con <code>npm ci --omit=dev</code>.</p><div class="pulse" style="--d:.8s"></div></div>
+    <div class="card stage"><span class="n">04 · push</span><h3>Container Registry</h3><p><code>registry.digitalocean.com/codequest/backend</code> con los tags <code>:latest</code> y <code>:&lt;sha&gt;</code>.</p><div class="pulse" style="--d:1.2s"></div></div>
+    <div class="card stage assumed"><span class="n">05 · deploy</span><h3>App Platform</h3><p>Ejecuta <code>node dist/main</code> sobre la imagen <code>:latest</code>, con el puerto 3000 expuesto.</p><div class="pulse" style="--d:1.6s"></div></div>
+  </div>
+</section>
+
+<section id="be-costos">
+  <p class="eyebrow">DigitalOcean</p>
+  <h2>Costos</h2>
+  <p class="lead">Estimación mensual que recoge el README del backend para el stack completo en DigitalOcean.</p>
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Servicio</th><th>Plan</th><th>Precio / mes</th></tr></thead>
+      <tbody>
+        <tr><td class="name">App Platform — Backend</td><td>Basic (512 MB)</td><td class="ver">$5.00</td></tr>
+        <tr><td class="name">App Platform — Frontend</td><td>Static Site</td><td class="ver">$0.00</td></tr>
+        <tr><td class="name">Managed PostgreSQL</td><td>Basic 1 GB</td><td class="ver">$15.00</td></tr>
+        <tr><td class="name">Total</td><td></td><td class="ver"><strong>$20.00 / mes</strong></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3 style="margin-bottom:8px">Durante el hackathon (14 días)</h3><p style="margin:0;color:var(--muted);font-size:14px">Según el README, DigitalOcean da <strong>$200 en créditos</strong> a cuentas nuevas, válidos 60 días, así que el coste real del hackathon es <strong>$0.00</strong>.</p></div>
+    <div class="card"><h3 style="margin-bottom:8px">Container Registry</h3><p style="margin:0;color:var(--muted);font-size:14px">Los dos workflows publican en <code>registry.digitalocean.com/codequest</code>. El README no incluye el registry en la tabla de costos.</p></div>
+  </div>
+</section>
+
+<div class="band g-fe" role="separator"><p class="band-label"><i></i>Frontend <small>— React + Three.js</small></p></div>
+
+<section id="fe-overview">
+  <p class="eyebrow">Frontend · 01 · Overview</p>
+  <h2>Frontend de Code Quest 2026</h2>
+  <p class="lead">SPA que convierte el catálogo de cursos de DevTalles en un universo explorable. El usuario inicia sesión con Discord, responde un assessment de 4 pasos y recorre sus rutas de aprendizaje sobre un mapa galáctico 3D en WebGL, donde cada curso es un planeta y cada ruta una galaxia.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-bottom:14px">Qué hace la aplicación</h3>
+      <ul class="checks">
+        <li><span><strong>Login con Discord</strong> vía OAuth2 del backend; el JWT llega como <code>?token=</code> y se captura en cualquier ruta.</span></li>
+        <li><span><strong>Assessment de 4 pasos</strong> (intereses, nivel, objetivos, tecnologías) que personaliza el mapa.</span></li>
+        <li><span><strong>Mapa galáctico 3D</strong> con Three.js: planetas por curso, nebulosas por galaxia y líneas de prerrequisitos.</span></li>
+        <li><span><strong>Bitácora (dashboard)</strong> con progreso, racha de 28 días y efecto warp en canvas 2D.</span></li>
+        <li><span><strong>Devi</strong>, asistente flotante disponible en todas las rutas protegidas.</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-bottom:14px">Levantar en local</h3>
+      <div class="steps">
+        <div class="card step"><h3>Instalar dependencias</h3><pre><span class="k">npm</span> install</pre><p>Requiere Node 20+ (la misma versión que usa el <code>Dockerfile</code>).</p></div>
+        <div class="card step"><h3>Configurar el entorno</h3><pre><span class="k">cp</span> .env.example .env</pre><p><code>VITE_MOCK_MODE=true</code> para trabajar sin backend; <code>false</code> y <code>VITE_API_URL</code> apuntando a <code>localhost:3000/api/v1</code> para usar el real.</p></div>
+        <div class="card step"><h3>Arrancar Vite</h3><pre><span class="k">npm</span> run dev</pre><p>Sirve en <code>http://localhost:5173</code> con <code>strictPort</code>: si el puerto está ocupado, falla en lugar de cambiar de puerto.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="fe-stack">
+  <p class="eyebrow">02 · Stack técnico</p>
+  <h2>Tecnologías principales</h2>
+  <p class="lead">Versiones tomadas de <code>package.json</code> y del <code>Dockerfile</code>. El mapa 3D usa Three.js directamente, sin React Three Fiber.</p>
+
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Tecnología</th><th>Versión</th><th>Rol</th><th>Dónde se usa</th></tr></thead>
+      <tbody>
+        <tr><td class="name">React</td><td class="ver">^18.3.1</td><td>UI declarativa con hooks; <code>StrictMode</code> activo</td><td><code>src/main.tsx</code>, todas las páginas y componentes</td></tr>
+        <tr><td class="name">TypeScript</td><td class="ver">~5.7.2</td><td>Tipado estricto; <code>tsc -b</code> corre antes de cada build</td><td><code>tsconfig.app.json</code>, <code>src/types/index.ts</code></td></tr>
+        <tr><td class="name">Vite</td><td class="ver">^5.4.11</td><td>Dev server con HMR, bundler de producción, alias <code>@ → src</code></td><td><code>vite.config.ts</code></td></tr>
+        <tr><td class="name">Three.js</td><td class="ver">^0.186.0</td><td>Escena WebGL del mapa galáctico; addons <code>OrbitControls</code>, <code>Line2</code>, <code>LineMaterial</code></td><td><code>hooks/useGalaxyScene.ts</code>, <code>lib/galaxy/*</code></td></tr>
+        <tr><td class="name">Tailwind CSS</td><td class="ver">^3.4.17</td><td>Utilidades y paleta <code>brand</code> (darker, dark, purple, violet, lime)</td><td><code>tailwind.config.js</code>, <code>styles/index.css</code></td></tr>
+        <tr><td class="name">React Router</td><td class="ver">^6.28.0</td><td><code>BrowserRouter</code>, rutas protegidas con <code>&lt;Outlet /&gt;</code>, <code>lazy</code> para el mapa 3D</td><td><code>src/App.tsx</code></td></tr>
+        <tr><td class="name">Docker</td><td class="ver">node:20-alpine · nginx:1.27-alpine</td><td>Build multi-stage; Nginx sirve <code>dist/</code> con fallback SPA y caché de assets</td><td><code>Dockerfile</code>, <code>nginx.conf</code></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <h3 class="sub">Librerías de soporte</h3>
+  <div class="chips">
+    <span class="chip">zustand ^4.5.5 · estado global</span>
+    <span class="chip">axios ^1.8.4 · cliente HTTP</span>
+    <span class="chip">framer-motion ^11.18.2</span>
+    <span class="chip">react-hook-form ^7.54.2</span>
+    <span class="chip">zod ^3.24.1</span>
+    <span class="chip">lucide-react ^0.468.0</span>
+    <span class="chip">sonner ^1.7.1 · toasts</span>
+    <span class="chip">eslint ^10 + typescript-eslint</span>
+  </div>
+</section>
+
+<section id="fe-arquitectura">
+  <p class="eyebrow">03 · Arquitectura</p>
+  <h2>Estructura de <code>src/</code></h2>
+  <p class="lead">Las páginas orquestan; los hooks encapsulan efectos y estado local; <code>lib/galaxy</code> reúne la lógica 3D reutilizable y testeable; <code>services</code> y <code>stores</code> son la única vía hacia el backend.</p>
+
+  <div class="card tree" id="tree"></div>
+
+  <h3 class="sub">Arranque de la aplicación</h3>
+  <div class="flowline">
+    <span>index.html</span><i></i>
+    <span>main.tsx</span><i></i>
+    <span class="hl">&lt;StrictMode&gt; + &lt;Toaster theme="dark"&gt;</span><i></i>
+    <span>App.tsx · BrowserRouter</span><i></i>
+    <span>TokenRedirectHandler</span><i></i>
+    <span class="hl">Routes</span>
+  </div>
+  <div class="grid g2">
+    <div class="card module" style="--c:var(--purple)">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><div><h3>ProtectedRoutes</h3><span>src/App.tsx</span></div></div>
+      <p>Si hay token pero no usuario, llama a <code>fetchMe()</code> y muestra «Validando sesión...». Autenticado: renderiza <code>&lt;Outlet /&gt;</code> más <code>&lt;DeviChat /&gt;</code>. Sin sesión: <code>Navigate</code> a <code>/login</code>.</p>
+    </div>
+    <div class="card module" style="--c:var(--blue)">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24"><path d="M15 7h3a5 5 0 010 10h-3M9 17H6A5 5 0 016 7h3M8 12h8"/></svg></div><div><h3>TokenRedirectHandler</h3><span>src/App.tsx</span></div></div>
+      <p>En cualquier ruta salvo <code>/auth/callback</code>, lee <code>?token=</code>, lo quita de la URL con <code>history.replaceState</code>, lo guarda en el store y navega a <code>/dashboard</code> (o a <code>/login</code> si <code>fetchMe</code> falla).</p>
+    </div>
+  </div>
+</section>
+
+<section id="fe-componentes">
+  <p class="eyebrow">04 · Componentes</p>
+  <h2>Diagrama de componentes</h2>
+  <p class="lead">Árbol de componentes React desde <code>App.tsx</code>: qué renderiza cada ruta y qué hooks y módulos de <code>lib/galaxy</code> usa. Las relaciones salen de los <code>import</code> y los <code>&lt;Route&gt;</code> del código. <code>StarMap3D</code> es pública y se carga con <code>lazy</code>; toda la escena 3D cuelga de ella.</p>
+  <div class="card cdiagram">
+    <svg class="cdiagram-svg" viewBox="0 0 800 894" role="img" aria-labelledby="cdiagram-title cdiagram-desc" font-family="'JetBrains Mono', ui-monospace, monospace" xmlns="http://www.w3.org/2000/svg"><title id="cdiagram-title">Árbol de componentes React de Code Quest 2026</title><desc id="cdiagram-desc">App.tsx renderiza TokenRedirectHandler, las rutas protegidas por ProtectedRoutes y las rutas públicas. StarMap3D usa useCourseGalaxy y useGalaxyScene, que a su vez usa planetVisuals, galaxyHighlight y relationLines.</desc><g fill="none" stroke="#30363d" stroke-width="1.5"><path d="M28 38 V387.0" /><path d="M62 98 V357.0" /><path d="M96 158 V237.0" /><path d="M62 398 V567.0" /><path d="M96 428 V447.0" /><path d="M96 488 V507.0" /><path d="M96 578 V867.0" /><path d="M130 638 V777.0" /><path d="M164 668 V717.0" /><path d="M130 818 V837.0" /><path d="M28 57.0 H50" /><path d="M28 87.0 H50" /><path d="M62 117.0 H84" /><path d="M62 147.0 H84" /><path d="M96 177.0 H118" /><path d="M96 207.0 H118" /><path d="M96 237.0 H118" /><path d="M62 267.0 H84" /><path d="M62 297.0 H84" /><path d="M62 327.0 H84" /><path d="M62 357.0 H84" /><path d="M28 387.0 H50" /><path d="M62 417.0 H84" /><path d="M96 447.0 H118" /><path d="M62 477.0 H84" /><path d="M96 507.0 H118" /><path d="M62 537.0 H84" /><path d="M62 567.0 H84" /><path d="M96 597.0 H118" /><path d="M96 627.0 H118" /><path d="M130 657.0 H152" /><path d="M164 687.0 H186" /><path d="M164 717.0 H186" /><path d="M130 747.0 H152" /><path d="M130 777.0 H152" /><path d="M96 807.0 H118" /><path d="M130 837.0 H152" /><path d="M96 867.0 H118" /></g><g data-kind="comp"><rect x="16" y="16" width="67" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="26" y="31" fill="#e6edf3" font-size="11">App.tsx</text><text x="93" y="31" fill="#8b949e" font-size="10">raíz · BrowserRouter + Routes</text></g><g data-kind="comp"><rect x="50" y="46" width="154" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="60" y="61" fill="#e6edf3" font-size="11">TokenRedirectHandler</text><text x="214" y="61" fill="#8b949e" font-size="10">captura ?token= en cualquier ruta</text></g><g data-kind="comp"><rect x="50" y="76" width="120" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="60" y="91" fill="#e6edf3" font-size="11">ProtectedRoutes</text><text x="180" y="91" fill="#8b949e" font-size="10">guard JWT · sin sesión → /login</text></g><g data-kind="comp"><rect x="84" y="106" width="74" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="94" y="121" fill="#e6edf3" font-size="11">DeviChat</text><text x="168" y="121" fill="#8b949e" font-size="10">asistente flotante en todas las rutas protegidas</text></g><g data-kind="page"><rect x="84" y="136" width="107" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="151" fill="#e6edf3" font-size="11">DashboardPage</text><text x="201" y="151" fill="#8b949e" font-size="10">/dashboard</text></g><g data-kind="hook"><rect x="118" y="166" width="87" height="22" rx="5" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="128" y="181" fill="#e6edf3" font-size="11">useStarMap</text><text x="215" y="181" fill="#8b949e" font-size="10">starfield 2D de fondo</text></g><g data-kind="hook"><rect x="118" y="196" width="107" height="22" rx="5" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="128" y="211" fill="#e6edf3" font-size="11">useGalaxyWarp</text><text x="235" y="211" fill="#8b949e" font-size="10">efecto warp en canvas 2D</text></g><g data-kind="comp"><rect x="118" y="226" width="120" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="128" y="241" fill="#e6edf3" font-size="11">Link → /starmap</text><text x="248" y="241" fill="#8b949e" font-size="10">también /routes y /assessment</text></g><g data-kind="page"><rect x="84" y="256" width="114" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="271" fill="#e6edf3" font-size="11">AssessmentPage</text><text x="208" y="271" fill="#8b949e" font-size="10">/assessment</text></g><g data-kind="page"><rect x="84" y="286" width="87" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="301" fill="#e6edf3" font-size="11">RoutesPage</text><text x="181" y="301" fill="#8b949e" font-size="10">/routes</text></g><g data-kind="page"><rect x="84" y="316" width="114" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="331" fill="#e6edf3" font-size="11">PathDetailPage</text><text x="208" y="331" fill="#8b949e" font-size="10">/paths/:id</text></g><g data-kind="page"><rect x="84" y="346" width="141" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="361" fill="#e6edf3" font-size="11">CourseLearningPage</text><text x="235" y="361" fill="#8b949e" font-size="10">/courses/:id</text></g><g data-kind="comp"><rect x="50" y="376" width="114" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5" stroke-dasharray="4 3"/><text x="60" y="391" fill="#e6edf3" font-size="11">Rutas públicas</text><text x="174" y="391" fill="#8b949e" font-size="10">sin guard</text></g><g data-kind="page"><rect x="84" y="406" width="94" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="421" fill="#e6edf3" font-size="11">LandingPage</text><text x="188" y="421" fill="#8b949e" font-size="10">/</text></g><g data-kind="hook"><rect x="118" y="436" width="87" height="22" rx="5" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="128" y="451" fill="#e6edf3" font-size="11">useStarMap</text><text x="215" y="451" fill="#8b949e" font-size="10">starfield 2D</text></g><g data-kind="page"><rect x="84" y="466" width="80" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="481" fill="#e6edf3" font-size="11">LoginPage</text><text x="174" y="481" fill="#8b949e" font-size="10">/login</text></g><g data-kind="hook"><rect x="118" y="496" width="87" height="22" rx="5" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="128" y="511" fill="#e6edf3" font-size="11">useStarMap</text><text x="215" y="511" fill="#8b949e" font-size="10">starfield 2D</text></g><g data-kind="page"><rect x="84" y="526" width="127" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="541" fill="#e6edf3" font-size="11">AuthCallbackPage</text><text x="221" y="541" fill="#8b949e" font-size="10">/auth/callback</text></g><g data-kind="page"><rect x="84" y="556" width="80" height="22" rx="5" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="94" y="571" fill="#e6edf3" font-size="11">StarMap3D</text><text x="174" y="571" fill="#8b949e" font-size="10">/starmap · lazy + Suspense · canvas Three.js</text></g><g data-kind="hook"><rect x="118" y="586" width="120" height="22" rx="5" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="128" y="601" fill="#e6edf3" font-size="11">useCourseGalaxy</text><text x="248" y="601" fill="#8b949e" font-size="10">GET /courses/galaxy o mock</text></g><g data-kind="hook"><rect x="118" y="616" width="114" height="22" rx="5" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="128" y="631" fill="#e6edf3" font-size="11">useGalaxyScene</text><text x="242" y="631" fill="#8b949e" font-size="10">hook imperativo Three.js</text></g><g data-kind="lib"><rect x="152" y="646" width="107" height="22" rx="5" fill="#1c2128" stroke="#10B981" stroke-width="1.5"/><text x="162" y="661" fill="#e6edf3" font-size="11">planetVisuals</text><text x="269" y="661" fill="#8b949e" font-size="10">→ texturas canvas 2D</text></g><g data-kind="lib"><rect x="186" y="676" width="107" height="22" rx="5" fill="#1c2128" stroke="#10B981" stroke-width="1.5"/><text x="196" y="691" fill="#e6edf3" font-size="11">idleScheduler</text><text x="303" y="691" fill="#8b949e" font-size="10">→ requestIdleCallback</text></g><g data-kind="lib"><rect x="186" y="706" width="87" height="22" rx="5" fill="#1c2128" stroke="#10B981" stroke-width="1.5"/><text x="196" y="721" fill="#e6edf3" font-size="11">deviceTier</text><text x="283" y="721" fill="#8b949e" font-size="10">→ resolución por gama</text></g><g data-kind="lib"><rect x="152" y="736" width="120" height="22" rx="5" fill="#1c2128" stroke="#10B981" stroke-width="1.5"/><text x="162" y="751" fill="#e6edf3" font-size="11">galaxyHighlight</text><text x="282" y="751" fill="#8b949e" font-size="10">→ funciones puras</text></g><g data-kind="lib"><rect x="152" y="766" width="107" height="22" rx="5" fill="#1c2128" stroke="#10B981" stroke-width="1.5"/><text x="162" y="781" fill="#e6edf3" font-size="11">relationLines</text><text x="269" y="781" fill="#8b949e" font-size="10">→ Line2 / LineMaterial</text></g><g data-kind="comp"><rect x="118" y="796" width="94" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="128" y="811" fill="#e6edf3" font-size="11">CoursePanel</text><text x="222" y="811" fill="#8b949e" font-size="10">detalle del curso seleccionado</text></g><g data-kind="comp"><rect x="152" y="826" width="94" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="162" y="841" fill="#e6edf3" font-size="11">CourseLinks</text><text x="256" y="841" fill="#8b949e" font-size="10">prerrequisitos y relacionados</text></g><g data-kind="comp"><rect x="118" y="856" width="107" height="22" rx="5" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="128" y="871" fill="#e6edf3" font-size="11">CourseTooltip</text><text x="235" y="871" fill="#8b949e" font-size="10">tooltip del planeta en hover</text></g><g><rect x="592" y="768" width="196" height="114" rx="8" fill="#1c2128" fill-opacity="0.85" stroke="#30363d"/><text x="606" y="787" fill="#8b949e" font-size="10" letter-spacing="1.5">LEYENDA</text><rect x="606" y="798" width="22" height="13" rx="3" fill="#1c2128" stroke="#3B82F6" stroke-width="1.5"/><text x="638" y="808.5" fill="#e6edf3" font-size="11">Página (ruta)</text><rect x="606" y="820" width="22" height="13" rx="3" fill="#1c2128" stroke="#8B5CF6" stroke-width="1.5"/><text x="638" y="830.5" fill="#e6edf3" font-size="11">Hook de React</text><rect x="606" y="842" width="22" height="13" rx="3" fill="#1c2128" stroke="#10B981" stroke-width="1.5"/><text x="638" y="852.5" fill="#e6edf3" font-size="11">Utilidad · lib/galaxy</text><rect x="606" y="864" width="22" height="13" rx="3" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/><text x="638" y="874.5" fill="#e6edf3" font-size="11">Componente</text></g></svg>
+  </div>
+</section>
+
+<section id="fe-galaxy">
+  <p class="eyebrow">05 · Galaxy 3D</p>
+  <h2>El mapa galáctico</h2>
+  <p class="lead"><code>StarMap3D</code> (ruta <code>/starmap</code>, cargado con <code>lazy</code>) obtiene galaxias y cursos con <code>useCourseGalaxy</code>, filtra por búsqueda y nivel, y entrega todo a <code>useGalaxyScene</code>. El hook monta una escena Three.js imperativa sobre un <code>&lt;canvas&gt;</code> y se comunica con React sólo mediante callbacks y refs.</p>
+
+  <div class="flowline">
+    <span>StarMap3D.tsx</span><i></i>
+    <span>useCourseGalaxy</span><i></i>
+    <span class="hl">useGalaxyScene</span><i></i>
+    <span>planetVisuals · relationLines · galaxyHighlight</span><i></i>
+    <span>WebGLRenderer</span>
+  </div>
+
+  <div class="grid g2" id="galaxy-modules"></div>
+
+  <h3 class="sub">Patrones de superficie por galaxia</h3>
+  <p class="lead" style="margin-top:-6px">Vista previa aproximada de los patrones que <code>planetVisuals.ts</code> pinta en canvas 2D. Se generan en escala de grises y el color de la galaxia se aplica en el material; aquí se tiñen sólo para distinguirlos. <code>noise</code> es el fallback para galaxias sin patrón asignado.</p>
+  <div class="patterns" id="patterns"></div>
+</section>
+
+<section id="fe-rutas">
+  <p class="eyebrow">06 · Páginas y rutas</p>
+  <h2>Rutas de React Router</h2>
+  <p class="lead">Definidas en <code>src/App.tsx</code>. Las rutas protegidas comparten el layout <code>ProtectedRoutes</code>, que exige sesión y monta el chat de Devi. Cualquier ruta desconocida redirige a <code>/</code>.</p>
+
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Ruta</th><th>Componente</th><th>Acceso</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td class="route">/</td><td class="comp">LandingPage</td><td><span class="auth">público</span></td><td>Hero «CODE QUEST 2026» con starfield de 1 000 estrellas (<code>useStarMap</code>), accesos a Universo y Bitácora.</td></tr>
+        <tr><td class="route">/login</td><td class="comp">LoginPage</td><td><span class="auth">público</span></td><td>Acceso al universo; inicia el OAuth de Discord en <code>${VITE_API_URL}/auth/discord</code>. En modo mock entra con un usuario de prueba.</td></tr>
+        <tr><td class="route">/auth/callback</td><td class="comp">AuthCallbackPage</td><td><span class="auth">público</span></td><td>Captura el JWT del redirect de Discord y carga el perfil.</td></tr>
+        <tr><td class="route">/starmap</td><td class="comp">StarMap3D</td><td><span class="auth lazy">público · lazy</span></td><td>Mapa galáctico 3D con búsqueda, filtro por nivel, panel de curso y progreso del usuario si hay sesión. Se carga con <code>React.lazy</code> + <code>Suspense</code> para no meter Three.js en el bundle inicial.</td></tr>
+        <tr><td class="route">/dashboard</td><td class="comp">DashboardPage</td><td><span class="auth jwt">JWT</span></td><td>Bitácora: progreso por curso, racha de 28 días y resumen del catálogo. Fondo con <code>useStarMap</code> (760 estrellas) y efecto warp de <code>useGalaxyWarp</code>.</td></tr>
+        <tr><td class="route">/assessment</td><td class="comp">AssessmentPage</td><td><span class="auth jwt">JWT</span></td><td>Cuestionario de 4 pasos: intereses, nivel, objetivos y tecnologías. El resultado personaliza el mapa.</td></tr>
+        <tr><td class="route">/routes</td><td class="comp">RoutesPage</td><td><span class="auth jwt">JWT</span></td><td>Rutas de aprendizaje del usuario; permite agregar más (vuelve al assessment) y eliminar con modal de confirmación.</td></tr>
+        <tr><td class="route">/paths/<em>:id</em></td><td class="comp">PathDetailPage</td><td><span class="auth jwt">JWT</span></td><td>Detalle de una ruta: cursos en tarjetas con nivel, duración y enlace al curso.</td></tr>
+        <tr><td class="route">/courses/<em>:id</em></td><td class="comp">CourseLearningPage</td><td><span class="auth jwt">JWT</span></td><td>Lecciones agrupadas por sección, reproductor y marcado de progreso por lección.</td></tr>
+        <tr><td class="route">*</td><td class="comp">Navigate → /</td><td><span class="auth">—</span></td><td>Fallback para rutas desconocidas. En producción, Nginx hace <code>try_files … /index.html</code> para que el router resuelva.</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<section id="fe-cicd">
+  <p class="eyebrow">07 · CI/CD</p>
+  <h2>De <code>main</code> a producción</h2>
+  <p class="lead">Workflow <code>.github/workflows/deploy.yml</code> («Build &amp; Deploy Frontend»). Cada push a <code>main</code> construye la imagen Docker con la URL del backend incrustada y la sube al Container Registry de DigitalOcean con dos tags.</p>
+
+  <div class="pipeline">
+    <div class="card stage"><span class="n">01 · trigger</span><h3>Push a main</h3><p><code>on.push.branches: [main]</code>, incluido el merge de un PR.</p><div class="pulse" style="--d:0s"></div></div>
+    <div class="card stage"><span class="n">02 · runner</span><h3>GitHub Actions</h3><p><code>ubuntu-latest</code>: checkout, instala <code>doctl</code> y hace <code>doctl registry login</code> con <code>DIGITALOCEAN_ACCESS_TOKEN</code>.</p><div class="pulse" style="--d:.3s"></div></div>
+    <div class="card stage"><span class="n">03 · build</span><h3>docker build</h3><p><code>--build-arg VITE_API_URL=${{ secrets.VITE_API_URL }}</code>; Vite incrusta la URL en el bundle.</p><div class="pulse" style="--d:.6s"></div></div>
+    <div class="card stage"><span class="n">04 · registry</span><h3>docker push</h3><p><code>registry.digitalocean.com/codequest/frontend</code> con tags <code>:latest</code> y <code>:${{ github.sha }}</code>.</p><div class="pulse" style="--d:.9s"></div></div>
+    <div class="card stage assumed"><span class="n">05 · deploy</span><h3>App Platform</h3><p>Autodeploy al detectar la nueva imagen <code>:latest</code> en el registry.</p><div class="pulse" style="--d:1.2s"></div></div>
+  </div>
+
+  <h3 class="sub">Imagen Docker multi-stage</h3>
+  <div class="grid g2">
+<pre><span class="c"># Stage 1 · build</span>
+<span class="k">FROM</span> node:20-alpine <span class="k">AS</span> build
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> package*.json ./
+<span class="k">RUN</span> npm ci
+<span class="k">COPY</span> . .
+<span class="k">ARG</span> VITE_API_URL
+<span class="k">ENV</span> VITE_API_URL=$VITE_API_URL
+<span class="k">RUN</span> npm run build   <span class="c"># tsc -b && vite build</span></pre>
+<pre><span class="c"># Stage 2 · runtime</span>
+<span class="k">FROM</span> nginx:1.27-alpine
+<span class="k">COPY</span> nginx.conf /etc/nginx/conf.d/default.conf
+<span class="k">COPY</span> --from=build /app/dist /usr/share/nginx/html
+<span class="k">EXPOSE</span> 80
+<span class="k">CMD</span> [<span class="s">"nginx"</span>, <span class="s">"-g"</span>, <span class="s">"daemon off;"</span>]
+
+<span class="c"># nginx.conf: try_files $uri $uri/ /index.html</span>
+<span class="c"># assets estáticos: expires 1y, Cache-Control immutable, gzip</span></pre>
+  </div>
+</section>
+
+<section id="fe-env">
+  <p class="eyebrow">08 · Variables de entorno</p>
+  <h2><code>VITE_API_URL</code> y compañía</h2>
+  <p class="lead">Vite reemplaza <code>import.meta.env.VITE_*</code> por su valor literal <strong>en tiempo de build</strong>. El contenedor final sólo sirve archivos estáticos con Nginx, así que cambiar la URL del backend exige reconstruir la imagen: no basta con una variable de entorno en runtime.</p>
+
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Variable</th><th>Local (<code>.env.example</code>)</th><th>Producción</th><th>Se usa en</th></tr></thead>
+      <tbody>
+        <tr><td class="route">VITE_API_URL</td><td class="ver">http://localhost:3000/api/v1</td><td>Secret <code>VITE_API_URL</code> de GitHub → <code>--build-arg</code></td><td><code>services/api.ts</code> (<code>baseURL</code> de Axios, timeout 30 s) y <code>services/auth.service.ts</code> (redirect a <code>/auth/discord</code>)</td></tr>
+        <tr><td class="route">VITE_MOCK_MODE</td><td class="ver">true</td><td>No se pasa en el build → <code>undefined</code> → modo real</td><td><code>useCourseGalaxy</code>, <code>auth.store</code>, <code>LoginPage</code>, <code>paths.service</code>, <code>assessments.service</code></td></tr>
+        <tr><td class="route">VITE_APP_NAME</td><td class="ver">Code Quest 2026</td><td>No se pasa en el build</td><td>Declarada en <code>.env.example</code>; hoy no se lee desde <code>src/</code></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <h3 class="sub">Cómo llega <code>VITE_API_URL</code> al bundle</h3>
+  <div class="env-flow">
+    <div class="card"><span class="n">1 · GitHub secret</span><p><code>secrets.VITE_API_URL</code> en el repositorio.</p></div>
+    <div class="card"><span class="n">2 · build-arg</span><p><code>docker build --build-arg VITE_API_URL=…</code> en el workflow.</p></div>
+    <div class="card"><span class="n">3 · ARG → ENV</span><p>El stage <code>build</code> la expone como variable de entorno para <code>npm run build</code>.</p></div>
+    <div class="card"><span class="n">4 · Vite</span><p>Reemplaza <code>import.meta.env.VITE_API_URL</code> por el string literal en <code>dist/assets/*.js</code>.</p></div>
+  </div>
+
+  <h3 class="sub">Build manual</h3>
+<pre><span class="k">docker</span> build \
+  --build-arg VITE_API_URL=<span class="s">http://localhost:3000/api/v1</span> \
+  -t codequest-frontend .
+
+<span class="k">docker</span> run -p 8080:80 codequest-frontend   <span class="c"># http://localhost:8080</span></pre>
+
+  </section>
+
+<footer>
+  <span>Code Quest 2026 · DevTalles · Arquitectura fullstack</span>
+  <span>Backend: generado a partir del código en <code>b37e103</code> · diagrama con Archify (<code>docs/architecture-backend.json</code>)</span>
+  <span>Frontend: <code>codequest-frontend</code> · septiembre 2026</span>
+</footer>
+</main>
+
+<script>
+(() => {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const icon = {
+    shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    book: '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M8 7h7"/>',
+    quiz: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    route: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 000-6H9a3 3 0 010-6h7"/>',
+    bot: '<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/>',
+    root: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>'
+  };
+
+  /* ── Módulos ── */
+  const modules = [
+    { name: 'AuthModule', path: 'src/auth', c: 'var(--rose)', i: 'shield', text: 'Login con Discord OAuth2 y con email/contraseña, emisión de JWT, cambio de contraseña y perfil del usuario actual. Gestiona la entidad Profile y el rol de superadmin.', chips: ['DiscordStrategy', 'JwtStrategy', 'JwtAuthGuard', 'SuperAdminGuard', 'Profile'] },
+    { name: 'CoursesModule', path: 'src/courses', c: 'var(--purple)', i: 'book', text: 'Catálogo de cursos DevTalles con categorías, galaxias 3D, lecciones, inscripción, progreso por lección y curso, y racha de estudio. CRUD administrativo protegido.', chips: ['Course', 'CourseLesson', 'UserCourseProgress', 'UserLessonProgress', '/courses/galaxy'] },
+    { name: 'AssessmentsModule', path: 'src/assessments', c: 'var(--blue)', i: 'quiz', text: 'Cuestionarios por skill. Guarda un snapshot inmutable de las preguntas al iniciar el intento, calcula un score ponderado y asigna el nivel vigente de cada skill.', chips: ['Skill', 'Question', 'QuizAttempt', 'QuizAnswer', 'scoring'] },
+    { name: 'LearningPathsModule', path: 'src/learning-paths', c: 'var(--cyan)', i: 'route', text: 'Genera rutas personalizadas: ordena el catálogo según los intereses, el nivel y la disponibilidad del usuario. Las guarda y sigue su progreso por lección.', chips: ['LearningPath', 'UserAssessment', 'CoursesService', 'generate'] },
+    { name: 'DeviModule', path: 'src/devi', c: 'var(--green)', i: 'bot', text: 'Asistente conversacional “Devi”. Envía la pregunta a una sesión de la API de agentes de OpenAI y devuelve el texto de la respuesta en streaming.', chips: ['POST /devi/ask', 'OPENAI_AGENT_ID', 'JwtAuthGuard'] },
+    { name: 'AppModule', path: 'src/app.module.ts', c: 'var(--amber)', i: 'root', text: 'Módulo raíz: ConfigModule global y TypeOrmModule.forRootAsync con getDatabaseConfig. Registra las migraciones de auth, courses, assessments y learning-paths.', chips: ['ConfigModule', 'TypeOrmModule', 'Swagger /docs', 'prefix api/v1'] }
+  ];
+  document.getElementById('modules').innerHTML = modules.map((m) => `
+    <article class="card module" style="--c:${m.c}">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24">${icon[m.i]}</svg></div><div><h3>${m.name}</h3><span>${m.path}</span></div></div>
+      <p>${esc(m.text)}</p>
+      <div class="chips">${m.chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>
+    </article>`).join('');
+
+  /* ── Endpoints ── */
+  const P = 'public', J = 'jwt', S = 'superadmin';
+  const api = {
+    Auth: ['/auth', [
+      ['GET', 'discord', P, 'Inicia el login con Discord (redirect)'],
+      ['GET', 'discord/callback', P, 'Callback OAuth2 → redirect al frontend con ?token=JWT'],
+      ['POST', 'register', P, 'Registro local con email y contraseña'],
+      ['POST', 'login', P, 'Login local → JWT'],
+      ['POST', 'password/change', J, 'Cambiar la contraseña'],
+      ['GET', 'me', J, 'Perfil del usuario autenticado']
+    ]],
+    Courses: ['/courses', [
+      ['GET', '', J, 'Listar cursos (?category, ?level)'],
+      ['GET', 'categories', J, 'Categorías disponibles'],
+      ['GET', 'galaxy', J, 'Cursos agrupados en galaxias 3D con prerequisites y related'],
+      ['GET', ':id', J, 'Detalle de un curso'],
+      ['GET', ':id/lessons', J, 'Lecciones de un curso'],
+      ['GET', 'users/:profileId/streak', J, 'Racha de estudio'],
+      ['GET', 'users/:profileId/progress', J, 'Progreso por curso'],
+      ['GET', 'users/:profileId/courses/:id/lessons', J, 'Lecciones con progreso del usuario'],
+      ['POST', 'users/:profileId/courses/:id/enroll', J, 'Inscribirse en un curso'],
+      ['PATCH', 'users/:profileId/courses/:courseId/lessons/:lessonId/progress', J, 'Actualizar el progreso de una lección'],
+      ['POST', 'users/:profileId/lessons/:lessonId/complete', J, 'Marcar una lección como completada'],
+      ['POST', '', S, 'Crear un curso'],
+      ['PATCH', ':id', S, 'Editar un curso'],
+      ['DELETE', ':id', S, 'Eliminar un curso'],
+      ['POST', ':id/lessons', S, 'Crear una lección'],
+      ['PATCH', 'lessons/:lessonId', S, 'Editar una lección'],
+      ['DELETE', 'lessons/:lessonId', S, 'Eliminar una lección']
+    ]],
+    Assessments: ['/assessments', [
+      ['GET', 'skills', J, 'Skills activas'],
+      ['GET', 'catalog', J, 'Catálogo de evaluaciones'],
+      ['GET', 'catalog/:skillId', J, 'Detalle de la evaluación de una skill'],
+      ['POST', 'users/:profileId/skills/:skillId/start', J, 'Iniciar un intento (sin respuestas correctas)'],
+      ['POST', 'users/:profileId/attempts/:attemptId/answers', J, 'Guardar o actualizar una respuesta'],
+      ['POST', 'users/:profileId/attempts/:attemptId/complete', J, 'Calcular el score y el nivel'],
+      ['GET', 'users/:profileId/attempts/:attemptId/result', J, 'Resultado de un intento finalizado'],
+      ['GET', 'users/:profileId/my-skills', J, 'Nivel vigente por skill'],
+      ['POST', 'questions', S, 'Crear una pregunta con sus opciones'],
+      ['GET', 'admin/skills', S, 'Listar skills (incluidas las inactivas)'],
+      ['POST', 'admin/skills', S, 'Crear una skill'],
+      ['PATCH', 'admin/skills/:skillId', S, 'Editar una skill'],
+      ['DELETE', 'admin/skills/:skillId', S, 'Desactivar una skill'],
+      ['GET', 'admin/skills/:skillId/questions', S, 'Preguntas de una skill, con la respuesta correcta'],
+      ['GET', 'admin/questions/:questionId', S, 'Consultar una pregunta'],
+      ['PATCH', 'admin/questions/:questionId', S, 'Editar una pregunta'],
+      ['DELETE', 'admin/questions/:questionId', S, 'Desactivar una pregunta']
+    ]],
+    'Learning Paths': ['/learning-paths', [
+      ['POST', 'users/:profileId/generate', J, 'Generar y guardar rutas personalizadas'],
+      ['GET', 'users/:profileId', J, 'Rutas del perfil'],
+      ['GET', 'users/:profileId/:id', J, 'Detalle con cursos, lecciones y progreso'],
+      ['PATCH', 'users/:profileId/:pathId/courses/:courseId/lessons/:lessonId/progress', J, 'Marcar o desmarcar una lección'],
+      ['DELETE', 'users/:profileId/:id', J, 'Eliminar una ruta']
+    ]],
+    Devi: ['/devi', [
+      ['POST', 'ask', J, 'Preguntar al asistente Devi']
+    ]]
+  };
+  const total = Object.values(api).reduce((n, [, rows]) => n + rows.length, 0);
+  document.getElementById('stat-endpoints').textContent = total;
+  const hlPath = (p) => esc(p).replace(/(:[a-zA-Z]+)/g, '<em>$1</em>');
+  const authTag = (a) => a === J ? '<span class="auth jwt">JWT</span>' : a === S ? '<span class="auth sa">superadmin</span>' : '<span class="auth">público</span>';
+  const apiEl = document.getElementById('api');
+  apiEl.innerHTML = Object.entries(api).map(([name, [base, rows]]) => `
+    <div class="api-group" data-group="${esc(name)}">
+      <h3>${esc(name)} <span>${base} · ${rows.length}</span></h3>
+      ${rows.map(([m, p, a, d]) => {
+        const full = base + (p ? '/' + p : '');
+        return `<div class="row" data-search="${esc((m + ' ' + full + ' ' + d + ' ' + a).toLowerCase())}">
+          <span class="method ${m}">${m}</span>
+          <span class="path">${hlPath(full)}<span class="desc">${esc(d)}</span></span>
+          ${authTag(a)}
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  const tabsEl = document.getElementById('tabs');
+  const groups = ['Todos', ...Object.keys(api)];
+  tabsEl.innerHTML = groups.map((g, i) => `<button class="tab" type="button" data-g="${esc(g)}" aria-pressed="${i === 0}">${esc(g)}<small>${i === 0 ? total : api[g][1].length}</small></button>`).join('');
+  let group = 'Todos';
+  const q = document.getElementById('q');
+  const filter = () => {
+    const term = q.value.trim().toLowerCase();
+    let shown = 0;
+    apiEl.querySelectorAll('.api-group').forEach((g) => {
+      const inGroup = group === 'Todos' || g.dataset.group === group;
+      let n = 0;
+      g.querySelectorAll('.row').forEach((r) => {
+        const ok = inGroup && (!term || r.dataset.search.includes(term));
+        r.hidden = !ok; if (ok) n++;
+      });
+      g.hidden = n === 0; shown += n;
+    });
+    apiEl.hidden = shown === 0;
+    document.getElementById('api-empty').style.display = shown === 0 ? 'block' : 'none';
+  };
+  tabsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('.tab'); if (!b) return;
+    group = b.dataset.g;
+    tabsEl.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-pressed', String(t === b)));
+    filter();
+  });
+  q.addEventListener('input', filter);
+
+  /* ── Migraciones ── */
+  const migs = [
+    ['0000', 'CreateProfiles', 'auth'],
+    ['0001', 'AddLocalAuthentication', 'auth'],
+    ['0002', 'CreateCourses', 'courses'],
+    ['0003', 'AddSuperAdminRole', 'auth'],
+    ['0004', 'AddCourseCatalogMetadata', 'courses'],
+    ['0005', 'CreateUserCourseProgress', 'courses'],
+    ['0006', 'SeedDevTallesCourses', 'courses'],
+    ['0007', 'CreateCourseLessonsAndAutomaticProgress', 'courses'],
+    ['0008', 'AddCourseGalaxyFields', 'courses', 'dup'],
+    ['0008', 'CreateAssessments', 'assessments', 'dup'],
+    ['0009', 'ClassifyCoursesIntoGalaxies', 'courses', 'dup'],
+    ['0009', 'CreateQuizAttemptQuestionSnapshots', 'assessments', 'dup'],
+    ['0010', 'SeedInitialAssessmentQuestions', 'assessments'],
+    ['0011', 'CreateLearningPaths', 'learning-paths'],
+    ['0012', 'UseLessonProgress', 'learning-paths'],
+    ['0013', 'SeedCourseLessons', 'courses'],
+    ['0014', 'AddCourseCategoryToProgress', 'courses'],
+    ['0015', 'AddLessonDurations', 'courses']
+  ];
+  document.getElementById('migrations').innerHTML = migs.map(([n, name, mod, flag]) => `
+    <div class="card mig${+n <= 9 ? ' focus' : ''}${flag ? ' ' + flag : ''}">
+      <b>${n}</b><span class="name">172600000${n}-${name}</span><span class="mod">src/${mod}</span>
+    </div>`).join('');
+
+  /* ── Tablas ── */
+  const tables = [
+    ['profiles', 'auth', [['id', 'uuid', 'pk'], ['discord_id', 'varchar · unique · null'], ['username', 'varchar'], ['email', 'varchar · null'], ['password_hash', 'varchar · null'], ['is_active', 'bool'], ['is_super_admin', 'bool'], ['avatar_url', 'varchar · null'], ['created_at / updated_at', 'timestamp']]],
+    ['courses', 'courses', [['id', 'uuid', 'pk'], ['title / slug', 'varchar · slug unique'], ['description', 'text'], ['category / level', 'varchar'], ['url / duration_hours', 'varchar · int'], ['tags', 'text[]'], ['galaxies', 'text[]', 'hl'], ['galaxy_color', 'varchar · null', 'hl'], ['position_x / y / z', 'double', 'hl'], ['prerequisites', 'text[]', 'hl'], ['related', 'text[]', 'hl'], ['is_active / created_at', 'bool · timestamp']]],
+    ['course_lessons', 'courses', [['id', 'uuid', 'pk'], ['course_id', '→ courses', 'fk'], ['title / content', 'varchar · text'], ['video_url', 'varchar · null'], ['position', 'int'], ['is_preview', 'bool'], ['duration_hours', 'numeric(4,2)']]],
+    ['user_course_progress', 'courses', [['id', 'uuid', 'pk'], ['profile_id', '→ profiles', 'fk'], ['course_id', '→ courses', 'fk'], ['course_category', 'varchar'], ['status', 'varchar'], ['progress_percent', 'int'], ['started_at / completed_at', 'timestamp · null']]],
+    ['user_lesson_progress', 'courses', [['id', 'uuid', 'pk'], ['profile_id', '→ profiles', 'fk'], ['lesson_id', '→ course_lessons', 'fk'], ['completed_at', 'timestamp']]],
+    ['skills', 'assessments', [['id', 'uuid', 'pk'], ['name / slug', 'varchar · unique'], ['description', 'text · null'], ['is_active', 'bool']]],
+    ['questions', 'assessments', [['id', 'uuid', 'pk'], ['skill_id', '→ skills', 'fk'], ['text', 'text'], ['type', 'varchar'], ['difficulty', 'smallint'], ['is_active', 'bool']]],
+    ['question_options', 'assessments', [['id', 'uuid', 'pk'], ['question_id', '→ questions', 'fk'], ['text', 'text'], ['is_correct', 'bool'], ['position', 'smallint']]],
+    ['quiz_attempts', 'assessments', [['id', 'uuid', 'pk'], ['profile_id', '→ profiles', 'fk'], ['skill_id', '→ skills', 'fk'], ['status', 'varchar'], ['question_ids', 'uuid[]'], ['score / level', 'int · varchar · null'], ['completed_at', 'timestamp · null']]],
+    ['quiz_attempt_questions', 'assessments', [['id', 'uuid', 'pk'], ['attempt_id', '→ quiz_attempts', 'fk'], ['question_id', 'uuid'], ['question_text', 'text'], ['type / difficulty', 'varchar · smallint'], ['options_snapshot', 'jsonb'], ['correct_option_id', 'uuid']]],
+    ['quiz_answers', 'assessments', [['id', 'uuid', 'pk'], ['attempt_id', '→ quiz_attempts', 'fk'], ['question_id', '→ questions', 'fk'], ['selected_option_id', '→ question_options', 'fk']]],
+    ['user_assessments', 'learning-paths', [['id', 'uuid', 'pk'], ['profile_id', '→ profiles', 'fk'], ['interests', 'text[]'], ['goals', 'text'], ['current_level', 'varchar'], ['available_hours_per_week', 'int'], ['preferred_technologies', 'text[]']]],
+    ['learning_paths', 'learning-paths', [['id', 'uuid', 'pk'], ['profile_id', '→ profiles', 'fk'], ['assessment_id', '→ user_assessments', 'fk'], ['title / description', 'varchar · text'], ['estimated_weeks / total_hours', 'int'], ['courses_order', 'jsonb'], ['tips', 'text[]']]]
+  ];
+  document.getElementById('tables').innerHTML = tables.map(([name, mod, cols]) => `
+    <div class="card table">
+      <header><b>${name}</b><span>${mod}</span></header>
+      <ul>${cols.map(([c, t, k]) => `<li class="${k || ''}"><span>${esc(c)}</span><span>${esc(t)}</span></li>`).join('')}</ul>
+    </div>`).join('');
+
+  /* ── Stack ── */
+  const stack = [
+    ['NestJS', '12', '#e0234e', 'N', 'Framework modular: controladores, guards, pipes y Swagger.'],
+    ['TypeScript', '6', '#3178c6', 'TS', 'Tipado estricto en todo el backend.'],
+    ['PostgreSQL', '17', '#4169e1', 'PG', 'Base gestionada en DigitalOcean; en local, postgres:17-alpine.'],
+    ['TypeORM', '0.3.x', '#fe0803', 'ORM', 'Repositorios, QueryBuilder y migraciones versionadas.'],
+    ['Discord OAuth', 'passport-discord 0.1', '#5865f2', 'D', 'Login social con Passport; JWT con passport-jwt 4.'],
+    ['Docker', 'node 22.22.3-alpine', '#2496ed', '🐳', 'Dockerfile multi-stage (development / build / production) y Compose.'],
+    ['DigitalOcean', 'App Platform · DBaaS · Registry', '#0080ff', 'DO', 'Hosting del contenedor, PostgreSQL gestionado y registry de imágenes.']
+  ];
+  document.getElementById('stack-grid').innerHTML = stack.map(([n, v, c, l, d]) => `
+    <div class="card tech" style="--c:${c}">
+      <div class="tech-logo"><b>${l}</b></div>
+      <div><h3>${n}</h3><span class="ver">${esc(v)}</span></div>
+      <p>${esc(d)}</p>
+    </div>`).join('');
+
+  /* ── Diagrama: resaltar conexiones ── */
+  const svg = document.querySelector('.diagram svg');
+  if (svg) {
+    const edges = [...svg.querySelectorAll('[data-edge-id]')];
+    const nodes = [...svg.querySelectorAll('g[data-node-id]')];
+    const clear = () => { svg.classList.remove('dim'); svg.querySelectorAll('.hot').forEach((el) => el.classList.remove('hot')); };
+    const focus = (id) => {
+      clear(); svg.classList.add('dim');
+      const linked = new Set([id]);
+      edges.forEach((e) => {
+        if (e.dataset.edgeFrom === id || e.dataset.edgeTo === id) {
+          e.classList.add('hot'); linked.add(e.dataset.edgeFrom); linked.add(e.dataset.edgeTo);
+        }
+      });
+      nodes.forEach((n) => linked.has(n.dataset.nodeId) && n.classList.add('hot'));
+    };
+    nodes.forEach((n) => {
+      n.addEventListener('mouseenter', () => focus(n.dataset.nodeId));
+      n.addEventListener('focus', () => focus(n.dataset.nodeId));
+      n.addEventListener('mouseleave', clear);
+      n.addEventListener('blur', clear);
+    });
+  }
+})();
+</script>
+<script>
+(() => {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ── Árbol de carpetas ── */
+  const tree = [
+    ['<b>src/</b>', 'Código fuente de la SPA; alias <code>@</code> en Vite y TypeScript.'],
+    ['├── <i>main.tsx</i>', 'Punto de entrada: <code>createRoot</code>, <code>StrictMode</code>, estilos globales y <code>Toaster</code> de sonner.'],
+    ['├── <i>App.tsx</i>', 'Router, <code>ProtectedRoutes</code>, <code>TokenRedirectHandler</code> y carga diferida de <code>StarMap3D</code>.'],
+    ['├── <b>pages/</b>', 'Una página por ruta: Landing, Login, AuthCallback, Dashboard, Assessment, Routes, PathDetail, CourseLearning. Incluye <code>galaxy-effect.css</code>.'],
+    ['├── <b>components/</b>', 'Componentes de UI agrupados por dominio.'],
+    ['│   ├── <b class="hot">galaxy/</b>', '<code>StarMap3D</code> (mapa 3D), <code>CoursePanel</code>, <code>CourseTooltip</code>, <code>CourseLinks</code> y el <code>StarMap</code> 2D heredado.'],
+    ['│   ├── <b>devi/</b>', '<code>DeviChat</code>: asistente flotante con su propia hoja de estilos.'],
+    ['│   ├── <b>assessment/</b>', 'Los 4 pasos del cuestionario y el <code>StepIndicator</code>.'],
+    ['│   ├── <b>dashboard/</b>', '<code>PathCard</code> y <code>EmptyState</code>.'],
+    ['│   ├── <b>layout/</b>', '<code>Navbar</code> y <code>PageLayout</code>.'],
+    ['│   └── <b>ui/</b>', 'Primitivas reutilizables: Button, Badge, Card, ProgressBar, LoadingSpinner.'],
+    ['├── <b>hooks/</b>', 'Efectos y estado encapsulados.'],
+    ['│   ├── <i>useGalaxyScene.ts</i>', 'Escena Three.js completa del mapa (≈1 070 líneas).'],
+    ['│   ├── <i>useCourseGalaxy.ts</i>', 'Carga <code>/courses/galaxy</code> o el mock personalizado según el assessment.'],
+    ['│   ├── <i>useGalaxyWarp.ts</i>', 'Estelas warp en canvas 2D para el dashboard.'],
+    ['│   └── <i>useStarMap.ts</i> · useAuth · usePaths', 'Starfield 2D de fondo y accesos a los stores.'],
+    ['├── <b class="hot">lib/galaxy/</b>', 'Lógica 3D sin React: visuales de planetas, líneas, resaltado, planificación idle, gama de dispositivo y hash.'],
+    ['├── <b>services/</b>', 'Instancia Axios con JWT e interceptor 401, más un servicio por dominio (auth, courses, assessments, paths) y <code>galaxy.mock.ts</code>.'],
+    ['├── <b>stores/</b>', 'Zustand: <code>auth.store</code> (token, usuario, <code>fetchMe</code>) y <code>paths.store</code> (rutas y progreso).'],
+    ['├── <b>types/</b>', 'Tipos compartidos: <code>Galaxy</code>, <code>GalaxyCourse</code>, <code>CourseLevel</code>, progreso…'],
+    ['├── <b>utils/</b>', '<code>token.ts</code> (localStorage) y <code>format.ts</code> (horas, etiquetas de nivel).'],
+    ['└── <b>styles/</b>', '<code>index.css</code>: directivas Tailwind y clases globales (<code>.btn-primary</code>, <code>.card</code>, <code>.chip</code>…).']
+  ];
+  document.getElementById('tree').innerHTML = tree.map(([p, d]) => `<div class="trow"><span class="p">${p}</span><span class="d">${d}</span></div>`).join('');
+
+  /* ── Módulos Galaxy ── */
+  const icon = {
+    scene: '<circle cx="12" cy="12" r="3"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/>',
+    planet: '<circle cx="12" cy="12" r="6"/><path d="M3 15c3-1 6-3 9-6s5-5 9-6"/>',
+    focus: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    lines: '<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M7 17l10-10M7 18h9"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+    warp: '<path d="M12 12L4 4M12 12l8-8M12 12l-8 8M12 12l8 8M12 12H2M12 12h10"/>'
+  };
+  const modules = [
+    {
+      name: 'useGalaxyScene.ts', path: 'src/hooks · ≈1 070 líneas', c: 'var(--purple)', i: 'scene', wide: true,
+      text: 'Hook que construye y anima toda la escena. Usa Three.js de forma <strong>imperativa</strong>, sin React Three Fiber: un <code>useEffect</code> crea renderer, cámara, controles y fondo una sola vez; otro reconstruye los nodos cuando cambian <code>courses</code> o <code>galaxies</code>. El estado de hover, foco y selección vive en refs para que el loop de <code>requestAnimationFrame</code> no dependa de renders de React.',
+      list: [
+        '<code>WebGLRenderer</code> con <code>antialias</code> y <code>powerPreference: "high-performance"</code>; <code>pixelRatio</code> limitado a 2. Si no hay WebGL (<code>detectWebGL</code>), devuelve <code>isSupported: false</code>.',
+        '<code>OrbitControls</code> con damping 0.08 y distancia entre 5 y 260. Posición y target de la cámara se guardan en <code>sessionStorage</code> para restaurar la vista.',
+        'Fondo: 2 500 estrellas en <code>Points</code>, 4 estrellas fugaces, aurora y nebulosas con shaders propios.',
+        '<code>Raycaster</code> para hover y click con tolerancia de 6 px; al seleccionar, la cámara vuela al planeta interpolando con <code>FLIGHT_LERP = 0.08</code>.',
+        'Respeta <code>prefers-reduced-motion</code>: quita el movimiento, no la información visual.',
+        'Limpieza completa al desmontar: <code>dispose()</code> de geometrías, materiales, texturas, controles y renderer.'
+      ],
+      chips: ['OrbitControls', 'Raycaster', 'resetCamera()', 'focusCourse(slug)', 'isSupported']
+    },
+    {
+      name: 'planetVisuals.ts', path: 'src/lib/galaxy · ≈680 líneas', c: 'var(--blue)', i: 'planet',
+      text: 'Fábrica de assets compartidos por nivel (<code>createPlanetAssets</code>) y funciones de variación por curso.',
+      list: [
+        '<strong>7 texturas procedurales</strong> pintadas en canvas 2D, una por galaxia: circuit, ocean, rock, sand, metal, volcanic, crystal (más <code>noise</code> como fallback). Usan ruido periódico y fBm sembrados con <code>mulberry32</code>.',
+        'Los painters son <em>generators</em>: se pintan por chunks de ≤ 40 ms en callbacks idle, con un placeholder gris 1×1 hasta que terminan. <code>prioritizeSurfaces</code> adelanta los patrones más cercanos a la cámara.',
+        '<code>hashString</code> (FNV-1a de 32 bits, en <code>hash.ts</code>) da la orientación <strong>determinista</strong> por <code>courseId</code>: giro e inclinación del planeta, órbita, anillo decorativo, tono del aura, espejo y contraste. Cada propiedad usa una semilla distinta (4–10).',
+        'Radio por nivel: beginner 0.3, intermediate 0.5, advanced 0.7. Roughness y metalness por patrón.'
+      ],
+      chips: ['GALAXY_PATTERN', 'hashString', 'planetOrientation', 'surfaceVariant', 'createPlanetAssets']
+    },
+    {
+      name: 'galaxyHighlight.ts', path: 'src/lib/galaxy · funciones puras', c: 'var(--cyan)', i: 'focus',
+      text: 'Reglas de resaltado sin dependencias de Three.js ni de React, fáciles de probar de forma aislada.',
+      list: [
+        '<code>resolveActiveGalaxies(focusedKey, hovered)</code>: prioridad foco &gt; hover &gt; nada. Devuelve un <code>Set</code> de keys o <code>null</code>.',
+        '<code>courseEmphasis(course, active)</code>: <code>highlighted</code> si comparte alguna galaxia con el set, <code>dimmed</code> si no, <code>neutral</code> si no hay nada activo.',
+        '<code>resolveIntensifiedNebula(focusedKey, hovered)</code>: la galaxia enfocada o la primera del curso en hover.',
+        'La escena interpola hacia el objetivo (<code>EMPHASIS_LERP = 0.1</code>): emissive ×1.4 resaltado, ×0.3 atenuado.'
+      ],
+      chips: ['Emphasis', 'highlighted', 'dimmed', 'neutral']
+    },
+    {
+      name: 'relationLines.ts', path: 'src/lib/galaxy', c: 'var(--rose)', i: 'lines',
+      text: 'Dibuja las relaciones del curso en hover o seleccionado, agrupadas en el centro del curso de origen.',
+      list: [
+        '<code>Line2</code> + <code>LineGeometry</code> + <code>LineMaterial</code> para tener grosor en píxeles de pantalla (WebGL ignora <code>linewidth</code> en líneas normales). Requiere <code>setResolution</code> al redimensionar.',
+        'Prerrequisitos en rojo <code>#EF4444</code>, sólidos y más gruesos; relacionados en azul <code>#3B82F6</code>, discontinuos.',
+        'Animación de dash: <code>dashOffset -= delta × 1.5</code> en cada frame; las líneas crecen en 350 ms con <code>easeOutCubic</code> y un pulso de origen se expande en 600 ms.',
+        'Partículas: un único <code>Points</code> con buffer preasignado, 6 por prerrequisito viajando del origen al destino; <code>frustumCulled = false</code>. Sin partículas con reduced motion.'
+      ],
+      chips: ['Line2', 'LineMaterial', 'Points', 'SELECTED_LINE_INTENSITY = 0.45']
+    },
+    {
+      name: 'idleScheduler.ts', path: 'src/lib/galaxy', c: 'var(--green)', i: 'clock',
+      text: '<code>scheduleIdle(task)</code> ejecuta trabajo pesado (las texturas de planetas) sin bloquear el loop de render. Devuelve la función de cancelación.',
+      list: [
+        'Usa <code>requestIdleCallback</code> con <code>timeout: 500 ms</code>; sin timeout, el render continuo podría no dejar nunca un periodo idle en un dispositivo lento.',
+        'Fallback con <code>setTimeout(…, 1)</code> (Safari) y un deadline sintético de 40 ms que empieza a contar al arrancar el callback.',
+        'La tarea recibe un <code>IdleBudget</code> (<code>timeRemaining</code>, <code>didTimeout</code>) con la misma forma en ambos caminos.'
+      ],
+      chips: ['requestIdleCallback', 'setTimeout fallback', 'IdleBudget']
+    },
+    {
+      name: 'deviceTier.ts', path: 'src/lib/galaxy', c: 'var(--amber)', i: 'chip',
+      text: 'Decide una vez por escena la resolución de las texturas de superficie.',
+      list: [
+        'Gama baja si <code>navigator.deviceMemory ≤ 4</code> GB <strong>o</strong> <code>navigator.hardwareConcurrency ≤ 4</code> núcleos.',
+        'Gama baja: 256×128 px; resto: 512×256 px.',
+        'Una API ausente o con valor no numérico no cuenta como gama baja. <code>deviceMemory</code> no está en <code>lib.dom</code>, así que se lee como <code>unknown</code> y se valida.'
+      ],
+      chips: ['isLowEndDevice', 'surfaceSize', 'SURFACE_SIZE_LOW', 'SURFACE_SIZE_HIGH']
+    },
+    {
+      name: 'useGalaxyWarp.ts', path: 'src/hooks · canvas 2D', c: '#a78bfa', i: 'warp',
+      text: 'Efecto «salto a velocidad luz» del dashboard, independiente de Three.js. Devuelve un <em>ref callback</em> para el <code>&lt;canvas&gt;</code>.',
+      list: [
+        '320 partículas (120 con reduced motion, a 0.4× de velocidad) proyectadas en perspectiva desde el centro; ~30 % en azul.',
+        'Cada frame rellena con <code>rgba(5,8,20,.34)</code> en lugar de limpiar: deja una estela corta de pocos frames.',
+        '<code>ResizeObserver</code> recalcula tamaño y <code>devicePixelRatio</code> (máx. 2); limpia <code>requestAnimationFrame</code> y el observer al desmontar.'
+      ],
+      chips: ['RefCallback', 'ResizeObserver', 'DashboardPage']
+    }
+  ];
+  document.getElementById('galaxy-modules').innerHTML = modules.map((m) => `
+    <article class="card module${m.wide ? ' wide' : ''}" style="--c:${m.c}">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24">${icon[m.i]}</svg></div><div><h3>${esc(m.name)}</h3><span>${esc(m.path)}</span></div></div>
+      <p>${m.text}</p>
+      <ul>${m.list.map((li) => `<li>${li}</li>`).join('')}</ul>
+      <div class="chips">${m.chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>
+    </article>`).join('');
+
+  /* ── Previsualización de patrones ── */
+  const patterns = [
+    ['circuit', 'ai-ml', '#a78bfa'], ['ocean', 'frontend', '#38bdf8'], ['rock', 'backend', '#94a3b8'],
+    ['sand', 'fundamentals', '#fbbf24'], ['metal', 'mobile', '#e2e8f0'], ['volcanic', 'devops', '#f97316'],
+    ['crystal', 'dotnet-java', '#22d3ee'], ['noise', 'fallback', '#6b7280']
+  ];
+  // Mismo hash que src/lib/galaxy/hash.ts
+  const hash = (value, seed) => {
+    let h = 0x811c9dc5 ^ seed;
+    for (let i = 0; i < value.length; i++) { h ^= value.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0) / 0xffffffff;
+  };
+  const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const paint = {
+    circuit(ctx, r, s) { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1.5; for (let i = 0; i < 14; i++) { let x = Math.floor(r() * 8) * 10 + 5, y = Math.floor(r() * 8) * 10 + 5; ctx.beginPath(); ctx.moveTo(x, y); for (let k = 0; k < 3; k++) { r() < .5 ? x += (r() < .5 ? -1 : 1) * 20 : y += (r() < .5 ? -1 : 1) * 20; ctx.lineTo(x, y); } ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(x - 2, y - 2, 4, 4); } },
+    ocean(ctx, r, s) { const g = ctx.createLinearGradient(0, 0, 0, s); g.addColorStop(0, '#666'); g.addColorStop(1, '#333'); ctx.fillStyle = g; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#bbb'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(r() * s, r() * s, 6 + r() * 14, 4 + r() * 8, r() * 3, 0, 7); ctx.fill(); } },
+    rock(ctx, r, s) { ctx.fillStyle = '#777'; ctx.fillRect(0, 0, s, s); for (let i = 0; i < 18; i++) { const v = 60 + r() * 110 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.beginPath(); ctx.arc(r() * s, r() * s, 2 + r() * 8, 0, 7); ctx.fill(); } },
+    sand(ctx, r, s) { ctx.fillStyle = '#999'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = 'rgba(255,255,255,.5)'; for (let y = 4; y < s; y += 7) { ctx.beginPath(); for (let x = 0; x <= s; x += 4) ctx.lineTo(x, y + Math.sin(x / 8 + r()) * 2); ctx.stroke(); } },
+    metal(ctx, r, s) { const g = ctx.createLinearGradient(0, 0, s, s); g.addColorStop(0, '#eee'); g.addColorStop(.5, '#777'); g.addColorStop(1, '#ccc'); ctx.fillStyle = g; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = 'rgba(0,0,0,.25)'; for (let y = 0; y < s; y += 10) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke(); } },
+    volcanic(ctx, r, s) { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = '#eee'; ctx.lineWidth = 1.6; for (let i = 0; i < 6; i++) { let x = r() * s, y = r() * s; ctx.beginPath(); ctx.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (r() - .5) * 22; y += (r() - .5) * 22; ctx.lineTo(x, y); } ctx.stroke(); } },
+    crystal(ctx, r, s) { for (let i = 0; i < 16; i++) { const v = 70 + r() * 180 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.beginPath(); const x = r() * s, y = r() * s; ctx.moveTo(x, y - 14); ctx.lineTo(x + 12, y); ctx.lineTo(x, y + 14); ctx.lineTo(x - 12, y); ctx.fill(); } },
+    noise(ctx, r, s) { for (let y = 0; y < s; y += 4) for (let x = 0; x < s; x += 4) { const v = 80 + r() * 120 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(x, y, 4, 4); } }
+  };
+  const host = document.getElementById('patterns');
+  host.innerHTML = patterns.map(([p, g, c]) => `<div class="pattern" style="--c:${c}"><canvas width="80" height="80" data-p="${p}" data-c="${c}" aria-hidden="true"></canvas><div><b>${p}</b><span>${g}</span></div></div>`).join('');
+  host.querySelectorAll('canvas').forEach((cv) => {
+    const ctx = cv.getContext('2d'); if (!ctx) return;
+    const s = cv.width, p = cv.dataset.p;
+    ctx.save(); ctx.beginPath(); ctx.arc(s / 2, s / 2, s / 2, 0, 7); ctx.clip();
+    ctx.fillStyle = '#555'; ctx.fillRect(0, 0, s, s);
+    paint[p](ctx, rng(hash(p, 0) * 0xffffffff), s);
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = cv.dataset.c; ctx.fillRect(0, 0, s, s);
+    ctx.globalCompositeOperation = 'source-over';
+    const shade = ctx.createRadialGradient(s * .35, s * .35, s * .1, s / 2, s / 2, s / 2);
+    shade.addColorStop(0, 'rgba(255,255,255,.18)'); shade.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = shade; ctx.fillRect(0, 0, s, s); ctx.restore();
+  });
+})();
+</script>
+<script>
+(() => {
+  /* ── Navegación activa (backend + frontend) ── */
+  const links = [...document.querySelectorAll('.nav-groups a')];
+  const byId = new Map(links.map((a) => [a.getAttribute('href').slice(1), a]));
+  const scroller = document.querySelector('.nav-groups');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      const a = byId.get(en.target.id);
+      links.forEach((l) => l.classList.toggle('active', l === a));
+      if (!a) return;
+      const box = scroller.getBoundingClientRect(), r = a.getBoundingClientRect();
+      if (scroller.scrollWidth > scroller.clientWidth) scroller.scrollLeft += r.left - box.left - box.width / 2 + r.width / 2;
+      else if (r.top < box.top || r.bottom > box.bottom) scroller.scrollTop += r.top - box.top - box.height / 2;
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  document.querySelectorAll('main section[id]').forEach((s) => obs.observe(s));
+})();
+</script>
+</body>
+</html>

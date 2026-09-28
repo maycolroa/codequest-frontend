@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Quest 2026 · Frontend</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x2='1' y2='1'%3E%3Cstop stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%233b82f6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Ctext x='16' y='21' font-family='sans-serif' font-size='13' font-weight='800' fill='white' text-anchor='middle'%3ECQ%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Documentación de arquitectura del frontend de Code Quest 2026: React, TypeScript, Vite, Three.js, Tailwind, Docker y DigitalOcean.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-2: #0a0d13;
+  --panel: #131922;
+  --panel-2: #18202b;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --text: #e6e9f0;
+  --muted: #9aa3b5;
+  --faint: #677186;
+  --purple: #8b5cf6;
+  --purple-soft: #c4b5fd;
+  --blue: #3b82f6;
+  --blue-soft: #93c5fd;
+  --cyan: #22d3ee;
+  --rose: #f43f5e;
+  --rose-soft: #fda4af;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --grad: linear-gradient(135deg, var(--purple), var(--blue));
+  --radius: 14px;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --nav-w: 232px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgba(139, 92, 246, 0.13), transparent 60%),
+    radial-gradient(700px 400px at 10% 10%, rgba(59, 130, 246, 0.08), transparent 60%);
+  background-attachment: fixed;
+}
+a { color: var(--blue-soft); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .mono { font-family: var(--mono); }
+code { font-size: 0.86em; background: rgba(139, 92, 246, 0.12); color: var(--purple-soft); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+
+/* ── Navegación ───────────────────────────── */
+.nav {
+  position: fixed; inset: 0 auto 0 0; width: var(--nav-w);
+  border-right: 1px solid var(--line); background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(12px); padding: 28px 16px; display: flex; flex-direction: column; gap: 28px; z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+.brand-logo { width: 34px; height: 34px; border-radius: 10px; background: var(--grad); display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35); }
+.brand b { display: block; font-size: 14px; letter-spacing: -0.01em; }
+.brand span { display: block; font-size: 12px; color: var(--faint); }
+.nav ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: nav; }
+.nav li a {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px;
+  color: var(--muted); font-size: 14px; text-decoration: none; transition: background .15s, color .15s;
+}
+.nav li a::before { counter-increment: nav; content: counter(nav, decimal-leading-zero); font: 11px var(--mono); color: var(--faint); }
+.nav li a:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+.nav li a.active { background: rgba(139, 92, 246, 0.14); color: #fff; box-shadow: inset 2px 0 0 var(--purple); }
+.nav li a.active::before { color: var(--purple-soft); }
+.nav-foot { margin-top: auto; font-size: 12px; color: var(--faint); padding: 0 8px; }
+.nav-foot .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; box-shadow: 0 0 8px var(--green); }
+
+main { margin-left: var(--nav-w); padding: 0 48px 96px; max-width: calc(var(--nav-w) + 1180px); }
+section { padding-top: 64px; }
+.eyebrow { font: 600 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--purple-soft); margin: 0 0 8px; }
+h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
+h2 { font-size: 28px; line-height: 1.2; }
+h3 { font-size: 16px; }
+h3.sub { font-size: 18px; margin: 32px 0 14px; }
+.lead { color: var(--muted); max-width: 72ch; margin: 10px 0 28px; }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.grid { display: grid; gap: 16px; }
+.grid > *, .steps > * { min-width: 0; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.note {
+  display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--muted);
+  border: 1px solid rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.06); border-radius: 10px; padding: 10px 14px; margin-top: 16px;
+}
+.note b { color: var(--amber); }
+
+/* ── Hero / Overview ─────────────────────── */
+.hero { padding-top: 56px; }
+.hero h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.05; font-weight: 800; }
+.hero h1 .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lead { font-size: 17px; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 7px; font: 500 12.5px var(--mono);
+  padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.03); color: var(--text);
+}
+.badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--purple)); box-shadow: 0 0 10px var(--c, var(--purple)); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
+.stat { padding: 16px 18px; }
+.stat b { display: block; font-size: 28px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1.1; }
+.stat span { font-size: 13px; color: var(--muted); }
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.checks li { display: flex; gap: 10px; color: var(--muted); font-size: 14.5px; }
+.checks li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 6px; background: rgba(139, 92, 246, 0.15) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23c4b5fd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5'/%3E%3C/svg%3E") center/14px no-repeat; }
+.checks li strong { color: var(--text); font-weight: 600; }
+
+.steps { counter-reset: step; display: grid; gap: 12px; }
+.step { position: relative; padding: 16px 18px 16px 58px; }
+.step::before {
+  counter-increment: step; content: counter(step); position: absolute; left: 16px; top: 16px;
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  font: 700 13px var(--mono); color: #fff; background: var(--grad);
+}
+.step h3 { font-size: 15px; margin-bottom: 8px; }
+.step p { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); }
+pre {
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line);
+  font-size: 13px; line-height: 1.55; color: #d6dbe7; overflow-x: auto;
+}
+pre .c { color: var(--faint); }
+pre .k { color: var(--purple-soft); }
+pre .s { color: #86efac; }
+pre .b { color: var(--blue-soft); }
+
+/* ── Tablas ──────────────────────────────── */
+.tbl { padding: 0; overflow: hidden; }
+.tbl-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font: 600 11.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 12px 16px; background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 11px 16px; border-top: 1px solid rgba(255, 255, 255, 0.035); vertical-align: top; color: var(--muted); }
+tr:hover td { background: rgba(255, 255, 255, 0.02); }
+td.name { color: var(--text); font-weight: 600; white-space: nowrap; }
+td.ver { font: 13px var(--mono); color: var(--purple-soft); white-space: nowrap; }
+td.route { font: 13px var(--mono); color: var(--text); white-space: nowrap; }
+td.route em { font-style: normal; color: var(--blue-soft); }
+td.comp { font: 13px var(--mono); color: var(--purple-soft); white-space: nowrap; }
+.auth { font: 11.5px var(--mono); padding: 3px 8px; border-radius: 6px; white-space: nowrap; border: 1px solid var(--line-2); color: var(--muted); display: inline-block; }
+.auth.jwt { color: var(--purple-soft); border-color: rgba(139, 92, 246, 0.35); }
+.auth.lazy { color: var(--blue-soft); border-color: rgba(59, 130, 246, 0.35); }
+
+/* ── Árbol de carpetas ───────────────────── */
+.tree { font: 13px/1.75 var(--mono); padding: 18px 20px; }
+.tree .row { display: grid; grid-template-columns: minmax(230px, max-content) minmax(0, 1fr); gap: 18px; align-items: baseline; }
+.tree .row + .row { border-top: 1px dashed rgba(255, 255, 255, 0.04); }
+.tree .p { white-space: pre; color: var(--faint); }
+.tree .p b { color: var(--blue-soft); font-weight: 500; }
+.tree .p i { color: #d6dbe7; font-style: normal; }
+.tree .p b.hot { color: var(--purple-soft); font-weight: 600; }
+.tree .d { font-family: var(--sans); font-size: 13.5px; color: var(--muted); }
+
+/* ── Módulos Galaxy ──────────────────────── */
+.module { display: flex; flex-direction: column; gap: 12px; transition: border-color .2s, transform .2s; }
+.module:hover { border-color: rgba(139, 92, 246, 0.4); transform: translateY(-2px); }
+.module-head { display: flex; align-items: center; gap: 12px; }
+.module-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 16%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); color: var(--c); flex: none; }
+.module-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.module-head h3 { font: 600 15px var(--mono); overflow-wrap: anywhere; }
+.module-head span { font-size: 12px; color: var(--faint); font-family: var(--mono); overflow-wrap: anywhere; }
+.module p { margin: 0; font-size: 14px; color: var(--muted); }
+.module ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); display: grid; gap: 4px; }
+.module ul li::marker { color: var(--purple); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.chip { font: 12px var(--mono); padding: 3px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: #c9cfda; }
+.module.wide { grid-column: 1 / -1; }
+
+.patterns { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pattern { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); }
+.pattern canvas { width: 40px; height: 40px; border-radius: 50%; flex: none; box-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); }
+.pattern b { display: block; font: 600 12.5px var(--mono); color: var(--text); }
+.pattern span { display: block; font: 11.5px var(--mono); color: var(--faint); }
+
+/* ── Flujo de renderizado ────────────────── */
+.flowline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 20px; }
+.flowline span { font: 12.5px var(--mono); padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line-2); color: var(--text); }
+.flowline span.hl { border-color: rgba(139, 92, 246, 0.45); color: var(--purple-soft); }
+.flowline i { width: 16px; height: 2px; background: var(--grad); position: relative; }
+.flowline i::after { content: ""; position: absolute; right: -3px; top: -4px; border: 5px solid transparent; border-left-color: var(--blue); }
+
+/* ── CI/CD ───────────────────────────────── */
+.pipeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: stretch; }
+.stage { position: relative; padding: 18px 16px; margin-right: 26px; display: flex; flex-direction: column; gap: 8px; }
+.stage:last-child { margin-right: 0; }
+.stage:not(:last-child)::after { content: ""; position: absolute; right: -22px; top: 50%; width: 18px; height: 2px; background: var(--grad); }
+.stage:not(:last-child)::before { content: ""; position: absolute; right: -24px; top: calc(50% - 4px); border: 5px solid transparent; border-left-color: var(--blue); }
+.stage .n { font: 11px var(--mono); color: var(--faint); }
+.stage h3 { font-size: 15px; }
+.stage p { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.stage.assumed { border-style: dashed; }
+.pulse { height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: auto; }
+.pulse::after { content: ""; display: block; height: 100%; width: 40%; background: var(--grad); animation: run 2.4s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+.env-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.env-flow .card { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.env-flow .card .n { font: 600 11px var(--mono); color: var(--purple-soft); letter-spacing: .08em; text-transform: uppercase; }
+.env-flow .card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .pulse::after { animation: none; }
+  .module:hover { transform: none; }
+}
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 1100px) {
+  .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .env-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pipeline { grid-template-columns: 1fr; }
+  .stage { margin: 0 0 22px; }
+  .stage:last-child { margin: 0; }
+  .stage:not(:last-child)::after { right: auto; left: 50%; top: auto; bottom: -18px; width: 2px; height: 14px; }
+  .stage:not(:last-child)::before { right: auto; left: calc(50% - 4px); top: auto; bottom: -24px; border-left-color: transparent; border-top-color: var(--blue); }
+}
+@media (max-width: 900px) {
+  .nav { position: sticky; inset: 0 auto auto 0; width: 100%; height: auto; flex-direction: row; align-items: center; padding: 10px 16px; gap: 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand > div:last-child, .nav-foot { display: none; }
+  .brand { padding: 0; flex: none; }
+  .nav ol { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .nav li a { white-space: nowrap; padding: 6px 10px; }
+  .nav li a::before { display: none; }
+  .nav li a.active { box-shadow: inset 0 -2px 0 var(--purple); }
+  main { margin-left: 0; padding: 0 16px 64px; }
+  html { scroll-padding-top: 72px; }
+  .g2, .g3, .env-flow { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tree .row { grid-template-columns: 1fr; gap: 0; padding: 4px 0; }
+  section { padding-top: 48px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Secciones">
+  <div class="brand">
+    <div class="brand-logo">CQ</div>
+    <div><b>Code Quest 2026</b><span>Frontend · arquitectura</span></div>
+  </div>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#stack">Stack técnico</a></li>
+    <li><a href="#arquitectura">Arquitectura</a></li>
+    <li><a href="#galaxy">Galaxy 3D</a></li>
+    <li><a href="#rutas">Páginas y rutas</a></li>
+    <li><a href="#cicd">CI/CD</a></li>
+    <li><a href="#env">Variables de entorno</a></li>
+  </ol>
+  <div class="nav-foot"><span class="dot"></span>codequest-frontend · main</div>
+</nav>
+
+<main>
+
+<!-- ═══════════════ 1. OVERVIEW ═══════════════ -->
+<section id="overview" class="hero">
+  <p class="eyebrow">01 · Overview</p>
+  <h1>Frontend de <span class="grad">Code Quest 2026</span></h1>
+  <p class="lead">SPA que convierte el catálogo de cursos de DevTalles en un universo explorable. El usuario inicia sesión con Discord, responde un assessment de 4 pasos y recorre sus rutas de aprendizaje sobre un mapa galáctico 3D en WebGL, donde cada curso es un planeta y cada ruta una galaxia.</p>
+
+  <div class="badges">
+    <span class="badge" style="--c:#61dafb"><i></i>React 18.3</span>
+    <span class="badge" style="--c:var(--blue)"><i></i>TypeScript 5.7</span>
+    <span class="badge" style="--c:#a78bfa"><i></i>Vite 5.4</span>
+    <span class="badge" style="--c:#e5e7eb"><i></i>Three.js 0.186</span>
+    <span class="badge" style="--c:#38bdf8"><i></i>Tailwind CSS 3.4</span>
+    <span class="badge" style="--c:#f87171"><i></i>React Router 6.28</span>
+    <span class="badge" style="--c:var(--amber)"><i></i>Zustand 4.5</span>
+    <span class="badge" style="--c:#2496ed"><i></i>Docker + Nginx</span>
+  </div>
+
+  <div class="stats">
+    <div class="card stat"><b>9</b><span>rutas en React Router</span></div>
+    <div class="card stat"><b>6</b><span>módulos en <code>lib/galaxy</code></span></div>
+    <div class="card stat"><b>7</b><span>texturas procedurales de planeta</span></div>
+    <div class="card stat"><b>2 500</b><span>estrellas en el fondo 3D</span></div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-bottom:14px">Qué hace la aplicación</h3>
+      <ul class="checks">
+        <li><span><strong>Login con Discord</strong> vía OAuth2 del backend; el JWT llega como <code>?token=</code> y se captura en cualquier ruta.</span></li>
+        <li><span><strong>Assessment de 4 pasos</strong> (intereses, nivel, objetivos, tecnologías) que personaliza el mapa.</span></li>
+        <li><span><strong>Mapa galáctico 3D</strong> con Three.js: planetas por curso, nebulosas por galaxia y líneas de prerrequisitos.</span></li>
+        <li><span><strong>Bitácora (dashboard)</strong> con progreso, racha de 28 días y efecto warp en canvas 2D.</span></li>
+        <li><span><strong>Devi</strong>, asistente flotante disponible en todas las rutas protegidas.</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-bottom:14px">Levantar en local</h3>
+      <div class="steps">
+        <div class="card step"><h3>Instalar dependencias</h3><pre><span class="k">npm</span> install</pre><p>Requiere Node 20+ (la misma versión que usa el <code>Dockerfile</code>).</p></div>
+        <div class="card step"><h3>Configurar el entorno</h3><pre><span class="k">cp</span> .env.example .env</pre><p><code>VITE_MOCK_MODE=true</code> para trabajar sin backend; <code>false</code> y <code>VITE_API_URL</code> apuntando a <code>localhost:3000/api/v1</code> para usar el real.</p></div>
+        <div class="card step"><h3>Arrancar Vite</h3><pre><span class="k">npm</span> run dev</pre><p>Sirve en <code>http://localhost:5173</code> con <code>strictPort</code>: si el puerto está ocupado, falla en lugar de cambiar de puerto.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 2. STACK ═══════════════ -->
+<section id="stack">
+  <p class="eyebrow">02 · Stack técnico</p>
+  <h2>Tecnologías principales</h2>
+  <p class="lead">Versiones tomadas de <code>package.json</code> y del <code>Dockerfile</code>. El mapa 3D usa Three.js directamente, sin React Three Fiber.</p>
+
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Tecnología</th><th>Versión</th><th>Rol</th><th>Dónde se usa</th></tr></thead>
+      <tbody>
+        <tr><td class="name">React</td><td class="ver">^18.3.1</td><td>UI declarativa con hooks; <code>StrictMode</code> activo</td><td><code>src/main.tsx</code>, todas las páginas y componentes</td></tr>
+        <tr><td class="name">TypeScript</td><td class="ver">~5.7.2</td><td>Tipado estricto; <code>tsc -b</code> corre antes de cada build</td><td><code>tsconfig.app.json</code>, <code>src/types/index.ts</code></td></tr>
+        <tr><td class="name">Vite</td><td class="ver">^5.4.11</td><td>Dev server con HMR, bundler de producción, alias <code>@ → src</code></td><td><code>vite.config.ts</code></td></tr>
+        <tr><td class="name">Three.js</td><td class="ver">^0.186.0</td><td>Escena WebGL del mapa galáctico; addons <code>OrbitControls</code>, <code>Line2</code>, <code>LineMaterial</code></td><td><code>hooks/useGalaxyScene.ts</code>, <code>lib/galaxy/*</code></td></tr>
+        <tr><td class="name">Tailwind CSS</td><td class="ver">^3.4.17</td><td>Utilidades y paleta <code>brand</code> (darker, dark, purple, violet, lime)</td><td><code>tailwind.config.js</code>, <code>styles/index.css</code></td></tr>
+        <tr><td class="name">React Router</td><td class="ver">^6.28.0</td><td><code>BrowserRouter</code>, rutas protegidas con <code>&lt;Outlet /&gt;</code>, <code>lazy</code> para el mapa 3D</td><td><code>src/App.tsx</code></td></tr>
+        <tr><td class="name">Docker</td><td class="ver">node:20-alpine · nginx:1.27-alpine</td><td>Build multi-stage; Nginx sirve <code>dist/</code> con fallback SPA y caché de assets</td><td><code>Dockerfile</code>, <code>nginx.conf</code></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <h3 class="sub">Librerías de soporte</h3>
+  <div class="chips">
+    <span class="chip">zustand ^4.5.5 · estado global</span>
+    <span class="chip">axios ^1.8.4 · cliente HTTP</span>
+    <span class="chip">framer-motion ^11.18.2</span>
+    <span class="chip">react-hook-form ^7.54.2</span>
+    <span class="chip">zod ^3.24.1</span>
+    <span class="chip">lucide-react ^0.468.0</span>
+    <span class="chip">sonner ^1.7.1 · toasts</span>
+    <span class="chip">eslint ^10 + typescript-eslint</span>
+  </div>
+</section>
+
+<!-- ═══════════════ 3. ARQUITECTURA ═══════════════ -->
+<section id="arquitectura">
+  <p class="eyebrow">03 · Arquitectura</p>
+  <h2>Estructura de <code>src/</code></h2>
+  <p class="lead">Las páginas orquestan; los hooks encapsulan efectos y estado local; <code>lib/galaxy</code> reúne la lógica 3D reutilizable y testeable; <code>services</code> y <code>stores</code> son la única vía hacia el backend.</p>
+
+  <div class="card tree" id="tree"></div>
+
+  <h3 class="sub">Arranque de la aplicación</h3>
+  <div class="flowline">
+    <span>index.html</span><i></i>
+    <span>main.tsx</span><i></i>
+    <span class="hl">&lt;StrictMode&gt; + &lt;Toaster theme="dark"&gt;</span><i></i>
+    <span>App.tsx · BrowserRouter</span><i></i>
+    <span>TokenRedirectHandler</span><i></i>
+    <span class="hl">Routes</span>
+  </div>
+  <div class="grid g2">
+    <div class="card module" style="--c:var(--purple)">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><div><h3>ProtectedRoutes</h3><span>src/App.tsx</span></div></div>
+      <p>Si hay token pero no usuario, llama a <code>fetchMe()</code> y muestra «Validando sesión...». Autenticado: renderiza <code>&lt;Outlet /&gt;</code> más <code>&lt;DeviChat /&gt;</code>. Sin sesión: <code>Navigate</code> a <code>/login</code>.</p>
+    </div>
+    <div class="card module" style="--c:var(--blue)">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24"><path d="M15 7h3a5 5 0 010 10h-3M9 17H6A5 5 0 016 7h3M8 12h8"/></svg></div><div><h3>TokenRedirectHandler</h3><span>src/App.tsx</span></div></div>
+      <p>En cualquier ruta salvo <code>/auth/callback</code>, lee <code>?token=</code>, lo quita de la URL con <code>history.replaceState</code>, lo guarda en el store y navega a <code>/dashboard</code> (o a <code>/login</code> si <code>fetchMe</code> falla).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 4. GALAXY 3D ═══════════════ -->
+<section id="galaxy">
+  <p class="eyebrow">04 · Galaxy 3D</p>
+  <h2>El mapa galáctico</h2>
+  <p class="lead"><code>StarMap3D</code> (ruta <code>/starmap</code>, cargado con <code>lazy</code>) obtiene galaxias y cursos con <code>useCourseGalaxy</code>, filtra por búsqueda y nivel, y entrega todo a <code>useGalaxyScene</code>. El hook monta una escena Three.js imperativa sobre un <code>&lt;canvas&gt;</code> y se comunica con React sólo mediante callbacks y refs.</p>
+
+  <div class="flowline">
+    <span>StarMap3D.tsx</span><i></i>
+    <span>useCourseGalaxy</span><i></i>
+    <span class="hl">useGalaxyScene</span><i></i>
+    <span>planetVisuals · relationLines · galaxyHighlight</span><i></i>
+    <span>WebGLRenderer</span>
+  </div>
+
+  <div class="grid g2" id="galaxy-modules"></div>
+
+  <h3 class="sub">Patrones de superficie por galaxia</h3>
+  <p class="lead" style="margin-top:-6px">Vista previa aproximada de los patrones que <code>planetVisuals.ts</code> pinta en canvas 2D. Se generan en escala de grises y el color de la galaxia se aplica en el material; aquí se tiñen sólo para distinguirlos. <code>noise</code> es el fallback para galaxias sin patrón asignado.</p>
+  <div class="patterns" id="patterns"></div>
+</section>
+
+<!-- ═══════════════ 5. RUTAS ═══════════════ -->
+<section id="rutas">
+  <p class="eyebrow">05 · Páginas y rutas</p>
+  <h2>Rutas de React Router</h2>
+  <p class="lead">Definidas en <code>src/App.tsx</code>. Las rutas protegidas comparten el layout <code>ProtectedRoutes</code>, que exige sesión y monta el chat de Devi. Cualquier ruta desconocida redirige a <code>/</code>.</p>
+
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Ruta</th><th>Componente</th><th>Acceso</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td class="route">/</td><td class="comp">LandingPage</td><td><span class="auth">público</span></td><td>Hero «CODE QUEST 2026» con starfield de 1 000 estrellas (<code>useStarMap</code>), accesos a Universo y Bitácora.</td></tr>
+        <tr><td class="route">/login</td><td class="comp">LoginPage</td><td><span class="auth">público</span></td><td>Acceso al universo; inicia el OAuth de Discord en <code>${VITE_API_URL}/auth/discord</code>. En modo mock entra con un usuario de prueba.</td></tr>
+        <tr><td class="route">/auth/callback</td><td class="comp">AuthCallbackPage</td><td><span class="auth">público</span></td><td>Captura el JWT del redirect de Discord y carga el perfil.</td></tr>
+        <tr><td class="route">/starmap</td><td class="comp">StarMap3D</td><td><span class="auth lazy">público · lazy</span></td><td>Mapa galáctico 3D con búsqueda, filtro por nivel, panel de curso y progreso del usuario si hay sesión. Se carga con <code>React.lazy</code> + <code>Suspense</code> para no meter Three.js en el bundle inicial.</td></tr>
+        <tr><td class="route">/dashboard</td><td class="comp">DashboardPage</td><td><span class="auth jwt">JWT</span></td><td>Bitácora: progreso por curso, racha de 28 días y resumen del catálogo. Fondo con <code>useStarMap</code> (760 estrellas) y efecto warp de <code>useGalaxyWarp</code>.</td></tr>
+        <tr><td class="route">/assessment</td><td class="comp">AssessmentPage</td><td><span class="auth jwt">JWT</span></td><td>Cuestionario de 4 pasos: intereses, nivel, objetivos y tecnologías. El resultado personaliza el mapa.</td></tr>
+        <tr><td class="route">/routes</td><td class="comp">RoutesPage</td><td><span class="auth jwt">JWT</span></td><td>Rutas de aprendizaje del usuario; permite agregar más (vuelve al assessment) y eliminar con modal de confirmación.</td></tr>
+        <tr><td class="route">/paths/<em>:id</em></td><td class="comp">PathDetailPage</td><td><span class="auth jwt">JWT</span></td><td>Detalle de una ruta: cursos en tarjetas con nivel, duración y enlace al curso.</td></tr>
+        <tr><td class="route">/courses/<em>:id</em></td><td class="comp">CourseLearningPage</td><td><span class="auth jwt">JWT</span></td><td>Lecciones agrupadas por sección, reproductor y marcado de progreso por lección.</td></tr>
+        <tr><td class="route">*</td><td class="comp">Navigate → /</td><td><span class="auth">—</span></td><td>Fallback para rutas desconocidas. En producción, Nginx hace <code>try_files … /index.html</code> para que el router resuelva.</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<!-- ═══════════════ 6. CI/CD ═══════════════ -->
+<section id="cicd">
+  <p class="eyebrow">06 · CI/CD</p>
+  <h2>De <code>main</code> a producción</h2>
+  <p class="lead">Workflow <code>.github/workflows/deploy.yml</code> («Build &amp; Deploy Frontend»). Cada push a <code>main</code> construye la imagen Docker con la URL del backend incrustada y la sube al Container Registry de DigitalOcean con dos tags.</p>
+
+  <div class="pipeline">
+    <div class="card stage"><span class="n">01 · trigger</span><h3>Push a main</h3><p><code>on.push.branches: [main]</code>, incluido el merge de un PR.</p><div class="pulse" style="--d:0s"></div></div>
+    <div class="card stage"><span class="n">02 · runner</span><h3>GitHub Actions</h3><p><code>ubuntu-latest</code>: checkout, instala <code>doctl</code> y hace <code>doctl registry login</code> con <code>DIGITALOCEAN_ACCESS_TOKEN</code>.</p><div class="pulse" style="--d:.3s"></div></div>
+    <div class="card stage"><span class="n">03 · build</span><h3>docker build</h3><p><code>--build-arg VITE_API_URL=${{ secrets.VITE_API_URL }}</code>; Vite incrusta la URL en el bundle.</p><div class="pulse" style="--d:.6s"></div></div>
+    <div class="card stage"><span class="n">04 · registry</span><h3>docker push</h3><p><code>registry.digitalocean.com/codequest/frontend</code> con tags <code>:latest</code> y <code>:${{ github.sha }}</code>.</p><div class="pulse" style="--d:.9s"></div></div>
+    <div class="card stage assumed"><span class="n">05 · deploy</span><h3>App Platform</h3><p>Autodeploy al detectar la nueva imagen <code>:latest</code> en el registry.</p><div class="pulse" style="--d:1.2s"></div></div>
+  </div>
+  <div class="note"><b>Nota</b><span>El workflow termina en el <code>docker push</code>: no contiene un paso de deploy. El despliegue depende de que la app de App Platform tenga activado el autodeploy de la imagen <code>:latest</code> (<code>deploy_on_push</code>), por eso la etapa 05 aparece con borde discontinuo. El README todavía describe un despliegue como Static Site, que ya no coincide con este flujo.</span></div>
+
+  <h3 class="sub">Imagen Docker multi-stage</h3>
+  <div class="grid g2">
+<pre><span class="c"># Stage 1 · build</span>
+<span class="k">FROM</span> node:20-alpine <span class="k">AS</span> build
+<span class="k">WORKDIR</span> /app
+<span class="k">COPY</span> package*.json ./
+<span class="k">RUN</span> npm ci
+<span class="k">COPY</span> . .
+<span class="k">ARG</span> VITE_API_URL
+<span class="k">ENV</span> VITE_API_URL=$VITE_API_URL
+<span class="k">RUN</span> npm run build   <span class="c"># tsc -b && vite build</span></pre>
+<pre><span class="c"># Stage 2 · runtime</span>
+<span class="k">FROM</span> nginx:1.27-alpine
+<span class="k">COPY</span> nginx.conf /etc/nginx/conf.d/default.conf
+<span class="k">COPY</span> --from=build /app/dist /usr/share/nginx/html
+<span class="k">EXPOSE</span> 80
+<span class="k">CMD</span> [<span class="s">"nginx"</span>, <span class="s">"-g"</span>, <span class="s">"daemon off;"</span>]
+
+<span class="c"># nginx.conf: try_files $uri $uri/ /index.html</span>
+<span class="c"># assets estáticos: expires 1y, Cache-Control immutable, gzip</span></pre>
+  </div>
+</section>
+
+<!-- ═══════════════ 7. ENV ═══════════════ -->
+<section id="env">
+  <p class="eyebrow">07 · Variables de entorno</p>
+  <h2><code>VITE_API_URL</code> y compañía</h2>
+  <p class="lead">Vite reemplaza <code>import.meta.env.VITE_*</code> por su valor literal <strong>en tiempo de build</strong>. El contenedor final sólo sirve archivos estáticos con Nginx, así que cambiar la URL del backend exige reconstruir la imagen: no basta con una variable de entorno en runtime.</p>
+
+  <div class="card tbl"><div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Variable</th><th>Local (<code>.env.example</code>)</th><th>Producción</th><th>Se usa en</th></tr></thead>
+      <tbody>
+        <tr><td class="route">VITE_API_URL</td><td class="ver">http://localhost:3000/api/v1</td><td>Secret <code>VITE_API_URL</code> de GitHub → <code>--build-arg</code></td><td><code>services/api.ts</code> (<code>baseURL</code> de Axios, timeout 30 s) y <code>services/auth.service.ts</code> (redirect a <code>/auth/discord</code>)</td></tr>
+        <tr><td class="route">VITE_MOCK_MODE</td><td class="ver">true</td><td>No se pasa en el build → <code>undefined</code> → modo real</td><td><code>useCourseGalaxy</code>, <code>auth.store</code>, <code>LoginPage</code>, <code>paths.service</code>, <code>assessments.service</code></td></tr>
+        <tr><td class="route">VITE_APP_NAME</td><td class="ver">Code Quest 2026</td><td>No se pasa en el build</td><td>Declarada en <code>.env.example</code>; hoy no se lee desde <code>src/</code></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <h3 class="sub">Cómo llega <code>VITE_API_URL</code> al bundle</h3>
+  <div class="env-flow">
+    <div class="card"><span class="n">1 · GitHub secret</span><p><code>secrets.VITE_API_URL</code> en el repositorio.</p></div>
+    <div class="card"><span class="n">2 · build-arg</span><p><code>docker build --build-arg VITE_API_URL=…</code> en el workflow.</p></div>
+    <div class="card"><span class="n">3 · ARG → ENV</span><p>El stage <code>build</code> la expone como variable de entorno para <code>npm run build</code>.</p></div>
+    <div class="card"><span class="n">4 · Vite</span><p>Reemplaza <code>import.meta.env.VITE_API_URL</code> por el string literal en <code>dist/assets/*.js</code>.</p></div>
+  </div>
+
+  <h3 class="sub">Build manual</h3>
+<pre><span class="k">docker</span> build \
+  --build-arg VITE_API_URL=<span class="s">http://localhost:3000/api/v1</span> \
+  -t codequest-frontend .
+
+<span class="k">docker</span> run -p 8080:80 codequest-frontend   <span class="c"># http://localhost:8080</span></pre>
+  <div class="note"><b>Ojo</b><span>Cualquier valor <code>VITE_*</code> queda visible en el JavaScript público. No guardes secretos en estas variables.</span></div>
+
+  <footer>
+    <span>Code Quest 2026 · DevTalles · Frontend</span>
+    <span>Generado a partir del código de <code>codequest-frontend</code> · septiembre 2026</span>
+  </footer>
+</section>
+
+</main>
+
+<script>
+(() => {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ── Árbol de carpetas ── */
+  const tree = [
+    ['<b>src/</b>', 'Código fuente de la SPA; alias <code>@</code> en Vite y TypeScript.'],
+    ['├── <i>main.tsx</i>', 'Punto de entrada: <code>createRoot</code>, <code>StrictMode</code>, estilos globales y <code>Toaster</code> de sonner.'],
+    ['├── <i>App.tsx</i>', 'Router, <code>ProtectedRoutes</code>, <code>TokenRedirectHandler</code> y carga diferida de <code>StarMap3D</code>.'],
+    ['├── <b>pages/</b>', 'Una página por ruta: Landing, Login, AuthCallback, Dashboard, Assessment, Routes, PathDetail, CourseLearning. Incluye <code>galaxy-effect.css</code>.'],
+    ['├── <b>components/</b>', 'Componentes de UI agrupados por dominio.'],
+    ['│   ├── <b class="hot">galaxy/</b>', '<code>StarMap3D</code> (mapa 3D), <code>CoursePanel</code>, <code>CourseTooltip</code>, <code>CourseLinks</code> y el <code>StarMap</code> 2D heredado.'],
+    ['│   ├── <b>devi/</b>', '<code>DeviChat</code>: asistente flotante con su propia hoja de estilos.'],
+    ['│   ├── <b>assessment/</b>', 'Los 4 pasos del cuestionario y el <code>StepIndicator</code>.'],
+    ['│   ├── <b>dashboard/</b>', '<code>PathCard</code> y <code>EmptyState</code>.'],
+    ['│   ├── <b>layout/</b>', '<code>Navbar</code> y <code>PageLayout</code>.'],
+    ['│   └── <b>ui/</b>', 'Primitivas reutilizables: Button, Badge, Card, ProgressBar, LoadingSpinner.'],
+    ['├── <b>hooks/</b>', 'Efectos y estado encapsulados.'],
+    ['│   ├── <i>useGalaxyScene.ts</i>', 'Escena Three.js completa del mapa (≈1 070 líneas).'],
+    ['│   ├── <i>useCourseGalaxy.ts</i>', 'Carga <code>/courses/galaxy</code> o el mock personalizado según el assessment.'],
+    ['│   ├── <i>useGalaxyWarp.ts</i>', 'Estelas warp en canvas 2D para el dashboard.'],
+    ['│   └── <i>useStarMap.ts</i> · useAuth · usePaths', 'Starfield 2D de fondo y accesos a los stores.'],
+    ['├── <b class="hot">lib/galaxy/</b>', 'Lógica 3D sin React: visuales de planetas, líneas, resaltado, planificación idle, gama de dispositivo y hash.'],
+    ['├── <b>services/</b>', 'Instancia Axios con JWT e interceptor 401, más un servicio por dominio (auth, courses, assessments, paths) y <code>galaxy.mock.ts</code>.'],
+    ['├── <b>stores/</b>', 'Zustand: <code>auth.store</code> (token, usuario, <code>fetchMe</code>) y <code>paths.store</code> (rutas y progreso).'],
+    ['├── <b>types/</b>', 'Tipos compartidos: <code>Galaxy</code>, <code>GalaxyCourse</code>, <code>CourseLevel</code>, progreso…'],
+    ['├── <b>utils/</b>', '<code>token.ts</code> (localStorage) y <code>format.ts</code> (horas, etiquetas de nivel).'],
+    ['└── <b>styles/</b>', '<code>index.css</code>: directivas Tailwind y clases globales (<code>.btn-primary</code>, <code>.card</code>, <code>.chip</code>…).']
+  ];
+  document.getElementById('tree').innerHTML = tree.map(([p, d]) => `<div class="row"><span class="p">${p}</span><span class="d">${d}</span></div>`).join('');
+
+  /* ── Módulos Galaxy ── */
+  const icon = {
+    scene: '<circle cx="12" cy="12" r="3"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/>',
+    planet: '<circle cx="12" cy="12" r="6"/><path d="M3 15c3-1 6-3 9-6s5-5 9-6"/>',
+    focus: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    lines: '<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M7 17l10-10M7 18h9"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+    warp: '<path d="M12 12L4 4M12 12l8-8M12 12l-8 8M12 12l8 8M12 12H2M12 12h10"/>'
+  };
+  const modules = [
+    {
+      name: 'useGalaxyScene.ts', path: 'src/hooks · ≈1 070 líneas', c: 'var(--purple)', i: 'scene', wide: true,
+      text: 'Hook que construye y anima toda la escena. Usa Three.js de forma <strong>imperativa</strong>, sin React Three Fiber: un <code>useEffect</code> crea renderer, cámara, controles y fondo una sola vez; otro reconstruye los nodos cuando cambian <code>courses</code> o <code>galaxies</code>. El estado de hover, foco y selección vive en refs para que el loop de <code>requestAnimationFrame</code> no dependa de renders de React.',
+      list: [
+        '<code>WebGLRenderer</code> con <code>antialias</code> y <code>powerPreference: "high-performance"</code>; <code>pixelRatio</code> limitado a 2. Si no hay WebGL (<code>detectWebGL</code>), devuelve <code>isSupported: false</code>.',
+        '<code>OrbitControls</code> con damping 0.08 y distancia entre 5 y 260. Posición y target de la cámara se guardan en <code>sessionStorage</code> para restaurar la vista.',
+        'Fondo: 2 500 estrellas en <code>Points</code>, 4 estrellas fugaces, aurora y nebulosas con shaders propios.',
+        '<code>Raycaster</code> para hover y click con tolerancia de 6 px; al seleccionar, la cámara vuela al planeta interpolando con <code>FLIGHT_LERP = 0.08</code>.',
+        'Respeta <code>prefers-reduced-motion</code>: quita el movimiento, no la información visual.',
+        'Limpieza completa al desmontar: <code>dispose()</code> de geometrías, materiales, texturas, controles y renderer.'
+      ],
+      chips: ['OrbitControls', 'Raycaster', 'resetCamera()', 'focusCourse(slug)', 'isSupported']
+    },
+    {
+      name: 'planetVisuals.ts', path: 'src/lib/galaxy · ≈680 líneas', c: 'var(--blue)', i: 'planet',
+      text: 'Fábrica de assets compartidos por nivel (<code>createPlanetAssets</code>) y funciones de variación por curso.',
+      list: [
+        '<strong>7 texturas procedurales</strong> pintadas en canvas 2D, una por galaxia: circuit, ocean, rock, sand, metal, volcanic, crystal (más <code>noise</code> como fallback). Usan ruido periódico y fBm sembrados con <code>mulberry32</code>.',
+        'Los painters son <em>generators</em>: se pintan por chunks de ≤ 40 ms en callbacks idle, con un placeholder gris 1×1 hasta que terminan. <code>prioritizeSurfaces</code> adelanta los patrones más cercanos a la cámara.',
+        '<code>hashString</code> (FNV-1a de 32 bits, en <code>hash.ts</code>) da la orientación <strong>determinista</strong> por <code>courseId</code>: giro e inclinación del planeta, órbita, anillo decorativo, tono del aura, espejo y contraste. Cada propiedad usa una semilla distinta (4–10).',
+        'Radio por nivel: beginner 0.3, intermediate 0.5, advanced 0.7. Roughness y metalness por patrón.'
+      ],
+      chips: ['GALAXY_PATTERN', 'hashString', 'planetOrientation', 'surfaceVariant', 'createPlanetAssets']
+    },
+    {
+      name: 'galaxyHighlight.ts', path: 'src/lib/galaxy · funciones puras', c: 'var(--cyan)', i: 'focus',
+      text: 'Reglas de resaltado sin dependencias de Three.js ni de React, fáciles de probar de forma aislada.',
+      list: [
+        '<code>resolveActiveGalaxies(focusedKey, hovered)</code>: prioridad foco &gt; hover &gt; nada. Devuelve un <code>Set</code> de keys o <code>null</code>.',
+        '<code>courseEmphasis(course, active)</code>: <code>highlighted</code> si comparte alguna galaxia con el set, <code>dimmed</code> si no, <code>neutral</code> si no hay nada activo.',
+        '<code>resolveIntensifiedNebula(focusedKey, hovered)</code>: la galaxia enfocada o la primera del curso en hover.',
+        'La escena interpola hacia el objetivo (<code>EMPHASIS_LERP = 0.1</code>): emissive ×1.4 resaltado, ×0.3 atenuado.'
+      ],
+      chips: ['Emphasis', 'highlighted', 'dimmed', 'neutral']
+    },
+    {
+      name: 'relationLines.ts', path: 'src/lib/galaxy', c: 'var(--rose)', i: 'lines',
+      text: 'Dibuja las relaciones del curso en hover o seleccionado, agrupadas en el centro del curso de origen.',
+      list: [
+        '<code>Line2</code> + <code>LineGeometry</code> + <code>LineMaterial</code> para tener grosor en píxeles de pantalla (WebGL ignora <code>linewidth</code> en líneas normales). Requiere <code>setResolution</code> al redimensionar.',
+        'Prerrequisitos en rojo <code>#EF4444</code>, sólidos y más gruesos; relacionados en azul <code>#3B82F6</code>, discontinuos.',
+        'Animación de dash: <code>dashOffset -= delta × 1.5</code> en cada frame; las líneas crecen en 350 ms con <code>easeOutCubic</code> y un pulso de origen se expande en 600 ms.',
+        'Partículas: un único <code>Points</code> con buffer preasignado, 6 por prerrequisito viajando del origen al destino; <code>frustumCulled = false</code>. Sin partículas con reduced motion.'
+      ],
+      chips: ['Line2', 'LineMaterial', 'Points', 'SELECTED_LINE_INTENSITY = 0.45']
+    },
+    {
+      name: 'idleScheduler.ts', path: 'src/lib/galaxy', c: 'var(--green)', i: 'clock',
+      text: '<code>scheduleIdle(task)</code> ejecuta trabajo pesado (las texturas de planetas) sin bloquear el loop de render. Devuelve la función de cancelación.',
+      list: [
+        'Usa <code>requestIdleCallback</code> con <code>timeout: 500 ms</code>; sin timeout, el render continuo podría no dejar nunca un periodo idle en un dispositivo lento.',
+        'Fallback con <code>setTimeout(…, 1)</code> (Safari) y un deadline sintético de 40 ms que empieza a contar al arrancar el callback.',
+        'La tarea recibe un <code>IdleBudget</code> (<code>timeRemaining</code>, <code>didTimeout</code>) con la misma forma en ambos caminos.'
+      ],
+      chips: ['requestIdleCallback', 'setTimeout fallback', 'IdleBudget']
+    },
+    {
+      name: 'deviceTier.ts', path: 'src/lib/galaxy', c: 'var(--amber)', i: 'chip',
+      text: 'Decide una vez por escena la resolución de las texturas de superficie.',
+      list: [
+        'Gama baja si <code>navigator.deviceMemory ≤ 4</code> GB <strong>o</strong> <code>navigator.hardwareConcurrency ≤ 4</code> núcleos.',
+        'Gama baja: 256×128 px; resto: 512×256 px.',
+        'Una API ausente o con valor no numérico no cuenta como gama baja. <code>deviceMemory</code> no está en <code>lib.dom</code>, así que se lee como <code>unknown</code> y se valida.'
+      ],
+      chips: ['isLowEndDevice', 'surfaceSize', 'SURFACE_SIZE_LOW', 'SURFACE_SIZE_HIGH']
+    },
+    {
+      name: 'useGalaxyWarp.ts', path: 'src/hooks · canvas 2D', c: '#a78bfa', i: 'warp',
+      text: 'Efecto «salto a velocidad luz» del dashboard, independiente de Three.js. Devuelve un <em>ref callback</em> para el <code>&lt;canvas&gt;</code>.',
+      list: [
+        '320 partículas (120 con reduced motion, a 0.4× de velocidad) proyectadas en perspectiva desde el centro; ~30 % en azul.',
+        'Cada frame rellena con <code>rgba(5,8,20,.34)</code> en lugar de limpiar: deja una estela corta de pocos frames.',
+        '<code>ResizeObserver</code> recalcula tamaño y <code>devicePixelRatio</code> (máx. 2); limpia <code>requestAnimationFrame</code> y el observer al desmontar.'
+      ],
+      chips: ['RefCallback', 'ResizeObserver', 'DashboardPage']
+    }
+  ];
+  document.getElementById('galaxy-modules').innerHTML = modules.map((m) => `
+    <article class="card module${m.wide ? ' wide' : ''}" style="--c:${m.c}">
+      <div class="module-head"><div class="module-icon"><svg viewBox="0 0 24 24">${icon[m.i]}</svg></div><div><h3>${esc(m.name)}</h3><span>${esc(m.path)}</span></div></div>
+      <p>${m.text}</p>
+      <ul>${m.list.map((li) => `<li>${li}</li>`).join('')}</ul>
+      <div class="chips">${m.chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>
+    </article>`).join('');
+
+  /* ── Previsualización de patrones ── */
+  const patterns = [
+    ['circuit', 'ai-ml', '#a78bfa'], ['ocean', 'frontend', '#38bdf8'], ['rock', 'backend', '#94a3b8'],
+    ['sand', 'fundamentals', '#fbbf24'], ['metal', 'mobile', '#e2e8f0'], ['volcanic', 'devops', '#f97316'],
+    ['crystal', 'dotnet-java', '#22d3ee'], ['noise', 'fallback', '#6b7280']
+  ];
+  // Mismo hash que src/lib/galaxy/hash.ts
+  const hash = (value, seed) => {
+    let h = 0x811c9dc5 ^ seed;
+    for (let i = 0; i < value.length; i++) { h ^= value.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0) / 0xffffffff;
+  };
+  const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const paint = {
+    circuit(ctx, r, s) { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1.5; for (let i = 0; i < 14; i++) { let x = Math.floor(r() * 8) * 10 + 5, y = Math.floor(r() * 8) * 10 + 5; ctx.beginPath(); ctx.moveTo(x, y); for (let k = 0; k < 3; k++) { r() < .5 ? x += (r() < .5 ? -1 : 1) * 20 : y += (r() < .5 ? -1 : 1) * 20; ctx.lineTo(x, y); } ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(x - 2, y - 2, 4, 4); } },
+    ocean(ctx, r, s) { const g = ctx.createLinearGradient(0, 0, 0, s); g.addColorStop(0, '#666'); g.addColorStop(1, '#333'); ctx.fillStyle = g; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#bbb'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(r() * s, r() * s, 6 + r() * 14, 4 + r() * 8, r() * 3, 0, 7); ctx.fill(); } },
+    rock(ctx, r, s) { ctx.fillStyle = '#777'; ctx.fillRect(0, 0, s, s); for (let i = 0; i < 18; i++) { const v = 60 + r() * 110 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.beginPath(); ctx.arc(r() * s, r() * s, 2 + r() * 8, 0, 7); ctx.fill(); } },
+    sand(ctx, r, s) { ctx.fillStyle = '#999'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = 'rgba(255,255,255,.5)'; for (let y = 4; y < s; y += 7) { ctx.beginPath(); for (let x = 0; x <= s; x += 4) ctx.lineTo(x, y + Math.sin(x / 8 + r()) * 2); ctx.stroke(); } },
+    metal(ctx, r, s) { const g = ctx.createLinearGradient(0, 0, s, s); g.addColorStop(0, '#eee'); g.addColorStop(.5, '#777'); g.addColorStop(1, '#ccc'); ctx.fillStyle = g; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = 'rgba(0,0,0,.25)'; for (let y = 0; y < s; y += 10) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke(); } },
+    volcanic(ctx, r, s) { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = '#eee'; ctx.lineWidth = 1.6; for (let i = 0; i < 6; i++) { let x = r() * s, y = r() * s; ctx.beginPath(); ctx.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (r() - .5) * 22; y += (r() - .5) * 22; ctx.lineTo(x, y); } ctx.stroke(); } },
+    crystal(ctx, r, s) { for (let i = 0; i < 16; i++) { const v = 70 + r() * 180 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.beginPath(); const x = r() * s, y = r() * s; ctx.moveTo(x, y - 14); ctx.lineTo(x + 12, y); ctx.lineTo(x, y + 14); ctx.lineTo(x - 12, y); ctx.fill(); } },
+    noise(ctx, r, s) { for (let y = 0; y < s; y += 4) for (let x = 0; x < s; x += 4) { const v = 80 + r() * 120 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(x, y, 4, 4); } }
+  };
+  const host = document.getElementById('patterns');
+  host.innerHTML = patterns.map(([p, g, c]) => `<div class="pattern" style="--c:${c}"><canvas width="80" height="80" data-p="${p}" data-c="${c}" aria-hidden="true"></canvas><div><b>${p}</b><span>${g}</span></div></div>`).join('');
+  host.querySelectorAll('canvas').forEach((cv) => {
+    const ctx = cv.getContext('2d'); if (!ctx) return;
+    const s = cv.width, p = cv.dataset.p;
+    ctx.save(); ctx.beginPath(); ctx.arc(s / 2, s / 2, s / 2, 0, 7); ctx.clip();
+    ctx.fillStyle = '#555'; ctx.fillRect(0, 0, s, s);
+    paint[p](ctx, rng(hash(p, 0) * 0xffffffff), s);
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = cv.dataset.c; ctx.fillRect(0, 0, s, s);
+    ctx.globalCompositeOperation = 'source-over';
+    const shade = ctx.createRadialGradient(s * .35, s * .35, s * .1, s / 2, s / 2, s / 2);
+    shade.addColorStop(0, 'rgba(255,255,255,.18)'); shade.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = shade; ctx.fillRect(0, 0, s, s); ctx.restore();
+  });
+
+  /* ── Scrollspy ── */
+  const links = [...document.querySelectorAll('.nav li a')];
+  const byId = new Map(links.map((a) => [a.getAttribute('href').slice(1), a]));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      links.forEach((a) => a.classList.remove('active'));
+      const a = byId.get(e.target.id);
+      if (a) { a.classList.add('active'); if (window.innerWidth <= 900) a.scrollIntoView({ block: 'nearest', inline: 'center' }); }
+    });
+  }, { rootMargin: '-35% 0px -60% 0px' });
+  document.querySelectorAll('main > section').forEach((s) => spy.observe(s));
+})();
+</script>
+</body>
+</html>
