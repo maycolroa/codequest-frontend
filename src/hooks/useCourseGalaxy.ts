@@ -24,8 +24,8 @@ const getPersonalizedDemo = (): UseCourseGalaxyResult => {
   if (!raw) return { galaxies: galaxyMock.galaxies, courses: galaxyMock.courses, isLoading: false, isDemo: true }
   try {
     const assessment = JSON.parse(raw) as AssessmentPayload
-    const interests = assessment.interests.map(normalize)
-    const technologies = assessment.technologies.map(normalize)
+    const interests = (assessment.interests ?? []).map(normalize)
+    const technologies = (assessment.technologies ?? []).map(normalize)
     const aliases = interests.flatMap((term) => term.includes('base') || term.includes('dato') ? ['databases', 'database', 'sql'] : term.includes('cloud') ? ['devops', 'cloud'] : [term])
     const matches = (terms: string[]): typeof galaxyMock.courses => galaxyMock.courses.filter((course) => {
       const searchable = [course.category, course.title, ...course.tags].map(normalize)

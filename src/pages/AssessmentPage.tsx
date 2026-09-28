@@ -9,7 +9,7 @@ import InterestsStep from '@/components/assessment/InterestsStep'
 import LevelStep from '@/components/assessment/LevelStep'
 import GoalsStep from '@/components/assessment/GoalsStep'
 import TechStep from '@/components/assessment/TechStep'
-import { assessmentsService } from '@/services/assessments.service'
+import { ASSESSMENT_STORAGE_KEY, assessmentsService } from '@/services/assessments.service'
 import type { AssessmentPayload } from '@/types'
 import { useAuthStore } from '@/stores/auth.store'
 import './galaxy-effect.css'
@@ -30,8 +30,17 @@ export default function AssessmentPage(): JSX.Element {
   const userId = useAuthStore((state) => state.user?.id)
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<AssessmentPayload>(() => {
-    if (!addingRoutes) return { interests: [], level: '', goals: [], technologies: [] }
-    try { return JSON.parse(window.localStorage.getItem('codequest:assessment') || '{}') as AssessmentPayload } catch { return { interests: [], level: '', goals: [], technologies: [] } }
+    const emptyAnswers: AssessmentPayload = { interests: [], level: '', goals: [], technologies: [] }
+    if (!addingRoutes) return emptyAnswers
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(ASSESSMENT_STORAGE_KEY) || '{}') as Partial<AssessmentPayload>
+      return {
+        interests: Array.isArray(stored.interests) ? stored.interests : [],
+        level: typeof stored.level === 'string' ? stored.level : '',
+        goals: Array.isArray(stored.goals) ? stored.goals : [],
+        technologies: Array.isArray(stored.technologies) ? stored.technologies : [],
+      }
+    } catch { return emptyAnswers }
   })
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -40,10 +49,10 @@ export default function AssessmentPage(): JSX.Element {
   const watchedAnswer = watch('answer')
   const orbitingInterests = field === 'interests'
     ? (Array.isArray(watchedAnswer) ? watchedAnswer : watchedAnswer ? [watchedAnswer] : [])
-    : answers.interests
+    : answers.interests ?? []
   const submit = async ({ answer }: FormValues): Promise<void> => {
     const values = Array.isArray(answer) ? answer : [answer]
-    const next = { ...answers, [field]: field === 'interests' && addingRoutes ? [...new Set([...answers.interests, ...values])] : field === 'level' ? values[0] : values }
+    const next = { ...answers, [field]: field === 'interests' && addingRoutes ? [...new Set([...(answers.interests ?? []), ...values])] : field === 'level' ? values[0] : values }
     setAnswers(next)
     if (step === steps.length - 1) {
       setSubmitting(true)
@@ -55,7 +64,7 @@ export default function AssessmentPage(): JSX.Element {
             const stored = JSON.parse(window.localStorage.getItem('codequest:assessment') || '{}') as Partial<AssessmentPayload>
             payload = {
               ...next,
-              interests: [...new Set([...(stored.interests || []), ...next.interests])],
+              interests: [...new Set([...(stored.interests || []), ...(next.interests ?? [])])],
             }
           } catch { /* Se mantiene la selección actual si no hay datos previos válidos. */ }
         }
@@ -113,7 +122,7 @@ export default function AssessmentPage(): JSX.Element {
         <span className="assessment-interest-orbit-ring" aria-hidden="true" />
         {orbitingInterests.map((interest, index) => <span className="assessment-interest assessment-interest-orbiting" style={{ '--orbit-delay': `${-(index * 18) / Math.max(orbitingInterests.length, 1)}s`, '--orbit-radius': `${210}px` } as React.CSSProperties} key={interest}>{interest}</span>)}
         <img src="/assets/devi-laptop.png" alt="" />
-        <p>{field === 'interests' && answers.interests.length ? `${answers.interests.length} sistemas en órbita` : 'Tu ruta, a tu ritmo'}</p>
+        <p>{field === 'interests' && (answers.interests?.length ?? 0) ? `${answers.interests?.length ?? 0} sistemas en órbita` : 'Tu ruta, a tu ritmo'}</p>
       </aside>
     </section>
   </main>
